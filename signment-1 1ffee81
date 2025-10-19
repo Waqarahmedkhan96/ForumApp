@@ -1,0 +1,9 @@
+[33m06e8b9a[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m Assignment 03: FileRepositories with JSON persistence; CLI switched to use them
+[33m34f4fc1[m[33m ([m[1;33mtag: [m[1;33massignment-2[m[33m)[m feat(cli): Assignment 2 – server-side console app with DI + async + menus
+[33m744a129[m chore: add .gitignore and stop tracking bin/obj
+[33ma72c58f[m chore: undo FileRepositories/Services/ForumCli projects
+[33m1ffee81[m Assignment01
+[33m3c55a46[m feat(repos): add in-memory repositories for Post/User/Comment
+[33ma8a07b4[m feat(repos): add repository interfaces
+[33me902465[m feat(entities): add User, Post, Comment with FK ids
+[33me842c9e[m chore: initial solution
