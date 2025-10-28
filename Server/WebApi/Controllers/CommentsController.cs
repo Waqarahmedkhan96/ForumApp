@@ -2,6 +2,7 @@ using ApiContracts.Comments;
 using Entities;
 using Microsoft.AspNetCore.Mvc;
 using RepositoryContracts;
+using RepositoryContracts.ExceptionHandling;
 
 namespace WebApi.Controllers;
 
@@ -10,16 +11,34 @@ namespace WebApi.Controllers;
 public class CommentsController : ControllerBase
 {
     private readonly ICommentRepository _comments;
-    public CommentsController(ICommentRepository comments) => _comments = comments;
+
+    public CommentsController(ICommentRepository comments)
+    {
+        _comments = comments;
+    }
 
     // POST /comments
     [HttpPost]
     public async Task<ActionResult<CommentDto>> Create([FromBody] CreateCommentDto dto)
     {
-        var c = new Comment { Body = dto.Body, PostId = dto.PostId, UserId = dto.AuthorUserId };
-        var created = await _comments.AddAsync(c);
+        // Create comment and let repository handle validation
+        var comment = new Comment
+        {
+            Body = dto.Body,
+            PostId = dto.PostId,
+            UserId = dto.AuthorUserId
+        };
 
-        var result = new CommentDto { Id = created.Id, Body = created.Body, PostId = created.PostId, AuthorUserId = created.UserId };
+        var created = await _comments.AddAsync(comment);
+
+        var result = new CommentDto
+        {
+            Id = created.Id,
+            Body = created.Body,
+            PostId = created.PostId,
+            AuthorUserId = created.UserId
+        };
+
         return Created($"/comments/{result.Id}", result);
     }
 
@@ -27,58 +46,63 @@ public class CommentsController : ControllerBase
     [HttpGet("{id:int}")]
     public async Task<ActionResult<CommentDto>> GetById(int id)
     {
-        Comment? c;
-        try { c = await _comments.GetSingleAsync(id); }
-        catch (KeyNotFoundException) { return NotFound(); }
+        var comment = await _comments.GetSingleAsync(id); // repo throws NotFoundException if not found
 
-        if (c is null) return NotFound();
+        var dto = new CommentDto
+        {
+            Id = comment.Id,
+            Body = comment.Body,
+            PostId = comment.PostId,
+            AuthorUserId = comment.UserId
+        };
 
-        return new CommentDto { Id = c.Id, Body = c.Body, PostId = c.PostId, AuthorUserId = c.UserId };
+        return Ok(dto);
     }
 
     // GET /comments?postId=&authorUserId=
     [HttpGet]
     public ActionResult<IEnumerable<CommentDto>> GetMany([FromQuery] int? postId, [FromQuery] int? authorUserId)
     {
-        var q = _comments.GetManyAsync(); // IQueryable<Comment>
-        if (postId is not null)      q = q.Where(c => c.PostId == postId.Value);
-        if (authorUserId is not null) q = q.Where(c => c.UserId == authorUserId.Value);
+        var query = _comments.GetManyAsync();
 
-        var list = q
-            .Select(c => new CommentDto { Id = c.Id, Body = c.Body, PostId = c.PostId, AuthorUserId = c.UserId })
-            .ToList();
+        if (postId is not null)
+            query = query.Where(c => c.PostId == postId.Value);
 
-        return list;
+        if (authorUserId is not null)
+            query = query.Where(c => c.UserId == authorUserId.Value);
+
+        var list = query.Select(c => new CommentDto
+        {
+            Id = c.Id,
+            Body = c.Body,
+            PostId = c.PostId,
+            AuthorUserId = c.UserId
+        }).ToList();
+
+        return Ok(list);
     }
 
     // PUT /comments/{id}
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, [FromBody] CreateCommentDto dto)
     {
-        var c = new Comment { Id = id, Body = dto.Body, PostId = dto.PostId, UserId = dto.AuthorUserId };
-        try
+        var comment = new Comment
         {
-            await _comments.UpdateAsync(c);
-            return NoContent();
-        }
-        catch (KeyNotFoundException)
-        {
-            return NotFound();
-        }
+            Id = id,
+            Body = dto.Body,
+            PostId = dto.PostId,
+            UserId = dto.AuthorUserId
+        };
+
+        await _comments.UpdateAsync(comment); // repo handles NotFoundException
+        return NoContent();
     }
 
     // DELETE /comments/{id}
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {
-        try
-        {
-            await _comments.DeleteAsync(id);
-            return NoContent();
-        }
-        catch (KeyNotFoundException)
-        {
-            return NotFound();
-        }
+        await _comments.DeleteAsync(id); // repo handles NotFoundException
+        return NoContent();
     }
 }

@@ -2,6 +2,7 @@ using ApiContracts.Users;
 using Entities;
 using Microsoft.AspNetCore.Mvc;
 using RepositoryContracts;
+using RepositoryContracts.ExceptionHandling; // for exceptions from repository
 
 namespace WebApi.Controllers;
 
@@ -9,77 +10,69 @@ namespace WebApi.Controllers;
 [Route("[controller]")]
 public class UsersController : ControllerBase
 {
-    private readonly IUserRepository _users;
-    public UsersController(IUserRepository users) => _users = users;
+    private readonly IUserRepository _repo;
+
+    public UsersController(IUserRepository repo)
+    {
+        _repo = repo;
+    }
 
     // POST /users
     [HttpPost]
-    public async Task<ActionResult<UserDto>> Create([FromBody] CreateUserDto dto)
+    public async Task<ActionResult<UserDto>> AddUser([FromBody] CreateUserDto request)
     {
-        var user = new User { Username = dto.UserName, Password = dto.Password };
-        var created = await _users.AddAsync(user);
+        // Create user and let repository handle validation
+        var user = new User(request.UserName, request.Password);
+        var created = await _repo.AddAsync(user);
 
-        var result = new UserDto { Id = created.Id, UserName = created.Username };
-        return Created($"/users/{result.Id}", result);
+        var dto = new UserDto { Id = created.Id, UserName = created.Username };
+        return Created($"/users/{dto.Id}", dto);
     }
 
     // GET /users/{id}
     [HttpGet("{id:int}")]
-    public async Task<ActionResult<UserDto>> GetById(int id)
+    public async Task<ActionResult<UserDto>> GetUser(int id)
     {
-        User? u;
-        try { u = await _users.GetSingleAsync(id); }
-        catch (KeyNotFoundException) { return NotFound(); }
-
-        if (u is null) return NotFound();
-
-        return new UserDto { Id = u.Id, UserName = u.Username };
+        var user = await _repo.GetSingleAsync(id); // repo throws NotFoundException if not found
+        var dto = new UserDto { Id = user.Id, UserName = user.Username };
+        return Ok(dto);
     }
 
     // GET /users?usernameContains=waq
     [HttpGet]
-    public ActionResult<IEnumerable<UserDto>> GetMany([FromQuery] string? usernameContains)
+    public ActionResult<IEnumerable<UserDto>> GetUsers([FromQuery] string? usernameContains)
     {
-        var q = _users.GetManyAsync(); // IQueryable<User>
+        var query = _repo.GetManyAsync();
+
         if (!string.IsNullOrWhiteSpace(usernameContains))
-            q = q.Where(u => u.Username.Contains(usernameContains, StringComparison.OrdinalIgnoreCase));
+        {
+            query = query.Where(u =>
+                u.Username.Contains(usernameContains, StringComparison.OrdinalIgnoreCase));
+        }
 
-        var list = q
-            .Select(u => new UserDto { Id = u.Id, UserName = u.Username })
-            .ToList(); // materialize IQueryable
+        var list = query.Select(u => new UserDto
+        {
+            Id = u.Id,
+            UserName = u.Username
+        }).ToList();
 
-        return list;
+        return Ok(list);
     }
 
     // PUT /users/{id}
     [HttpPut("{id:int}")]
-    public async Task<IActionResult> Update(int id, [FromBody] CreateUserDto dto)
+    public async Task<IActionResult> UpdateUser(int id, [FromBody] CreateUserDto request)
     {
-        // simple update DTO reuse (username+password)
-        var user = new User { Id = id, Username = dto.UserName, Password = dto.Password };
-        try
-        {
-            await _users.UpdateAsync(user);
-            return NoContent();
-        }
-        catch (KeyNotFoundException)
-        {
-            return NotFound();
-        }
+        var user = new User(request.UserName, request.Password) { Id = id };
+        await _repo.UpdateAsync(user); // repo handles not found or duplicate username
+        return NoContent();
     }
 
     // DELETE /users/{id}
     [HttpDelete("{id:int}")]
-    public async Task<IActionResult> Delete(int id)
+    public async Task<IActionResult> DeleteUser(int id)
     {
-        try
-        {
-            await _users.DeleteAsync(id);
-            return NoContent();
-        }
-        catch (KeyNotFoundException)
-        {
-            return NotFound();
-        }
+        await _repo.DeleteAsync(id); // repo throws NotFoundException if not found
+        return NoContent();
     }
 }

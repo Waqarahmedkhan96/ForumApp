@@ -2,6 +2,7 @@ using ApiContracts.Posts;
 using Entities;
 using Microsoft.AspNetCore.Mvc;
 using RepositoryContracts;
+using RepositoryContracts.ExceptionHandling;
 
 namespace WebApi.Controllers;
 
@@ -10,16 +11,28 @@ namespace WebApi.Controllers;
 public class PostsController : ControllerBase
 {
     private readonly IPostRepository _posts;
-    public PostsController(IPostRepository posts) => _posts = posts;
+
+    public PostsController(IPostRepository posts)
+    {
+        _posts = posts;
+    }
 
     // POST /posts
     [HttpPost]
     public async Task<ActionResult<PostDto>> Create([FromBody] CreatePostDto dto)
     {
+        // Create post and let repository handle validation
         var post = new Post { Title = dto.Title, Body = dto.Body, UserId = dto.AuthorUserId };
         var created = await _posts.AddAsync(post);
 
-        var result = new PostDto { Id = created.Id, Title = created.Title, Body = created.Body, AuthorUserId = created.UserId };
+        var result = new PostDto
+        {
+            Id = created.Id,
+            Title = created.Title,
+            Body = created.Body,
+            AuthorUserId = created.UserId
+        };
+
         return Created($"/posts/{result.Id}", result);
     }
 
@@ -27,30 +40,40 @@ public class PostsController : ControllerBase
     [HttpGet("{id:int}")]
     public async Task<ActionResult<PostDto>> GetById(int id)
     {
-        Post? p;
-        try { p = await _posts.GetSingleAsync(id); }
-        catch (KeyNotFoundException) { return NotFound(); }
+        var post = await _posts.GetSingleAsync(id); // repo throws NotFoundException if not found
 
-        if (p is null) return NotFound();
+        var dto = new PostDto
+        {
+            Id = post.Id,
+            Title = post.Title,
+            Body = post.Body,
+            AuthorUserId = post.UserId
+        };
 
-        return new PostDto { Id = p.Id, Title = p.Title, Body = p.Body, AuthorUserId = p.UserId };
+        return Ok(dto);
     }
 
     // GET /posts?titleContains=...&authorUserId=1
     [HttpGet]
     public ActionResult<IEnumerable<PostDto>> GetMany([FromQuery] string? titleContains, [FromQuery] int? authorUserId)
     {
-        var q = _posts.GetManyAsync(); // IQueryable<Post>
+        var query = _posts.GetManyAsync();
+
         if (!string.IsNullOrWhiteSpace(titleContains))
-            q = q.Where(p => p.Title.Contains(titleContains, StringComparison.OrdinalIgnoreCase));
+            query = query.Where(p => p.Title.Contains(titleContains, StringComparison.OrdinalIgnoreCase));
+
         if (authorUserId is not null)
-            q = q.Where(p => p.UserId == authorUserId.Value);
+            query = query.Where(p => p.UserId == authorUserId.Value);
 
-        var list = q
-            .Select(p => new PostDto { Id = p.Id, Title = p.Title, Body = p.Body, AuthorUserId = p.UserId })
-            .ToList();
+        var list = query.Select(p => new PostDto
+        {
+            Id = p.Id,
+            Title = p.Title,
+            Body = p.Body,
+            AuthorUserId = p.UserId
+        }).ToList();
 
-        return list;
+        return Ok(list);
     }
 
     // PUT /posts/{id}
@@ -58,29 +81,15 @@ public class PostsController : ControllerBase
     public async Task<IActionResult> Update(int id, [FromBody] CreatePostDto dto)
     {
         var post = new Post { Id = id, Title = dto.Title, Body = dto.Body, UserId = dto.AuthorUserId };
-        try
-        {
-            await _posts.UpdateAsync(post);
-            return NoContent();
-        }
-        catch (KeyNotFoundException)
-        {
-            return NotFound();
-        }
+        await _posts.UpdateAsync(post); // repo throws NotFoundException if not found
+        return NoContent();
     }
 
     // DELETE /posts/{id}
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {
-        try
-        {
-            await _posts.DeleteAsync(id);
-            return NoContent();
-        }
-        catch (KeyNotFoundException)
-        {
-            return NotFound();
-        }
+        await _posts.DeleteAsync(id); // repo throws NotFoundException if not found
+        return NoContent();
     }
 }
