@@ -2,6 +2,7 @@
 
 public class User
 {
+    public User() { }
     public User(string userName, string password)
     {
         Username = userName;
