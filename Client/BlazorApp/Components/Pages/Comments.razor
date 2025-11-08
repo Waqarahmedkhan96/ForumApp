@@ -1,0 +1,281 @@
+@page "/comments"
+@using ApiContracts.Comments
+@using ApiContracts.Users
+@inject BlazorApp.Services.Interfaces.ICommentService CommentSvc
+@inject BlazorApp.Services.Interfaces.IUserService UserSvc
+
+<h4 class="mb-3">💬 Comments</h4>
+
+<!-- Filters -->
+<div class="row g-2 mb-3">
+  <div class="col-12 col-md-3">
+    <input class="form-control" type="number" placeholder="Filter: Post Id"
+           @bind="filterPostIdString" @bind:event="oninput" />
+  </div>
+  <div class="col-12 col-md-4">
+    <input class="form-control" placeholder="Filter: text contains…"
+           @bind="filterText" @bind:event="oninput" />
+  </div>
+  <div class="col-12 col-md-2 d-grid">
+    <button class="btn btn-outline-secondary" @onclick="Load">Search</button>
+  </div>
+</div>
+
+@if (loading)
+{
+  <div class="d-flex align-items-center gap-2 text-muted my-3">
+    <div class="spinner-border spinner-border-sm"></div>
+    <span>Loading…</span>
+  </div>
+}
+else if (!string.IsNullOrWhiteSpace(error))
+{
+  <div class="alert alert-danger">@error</div>
+}
+else
+{
+  <!-- Create / Edit form -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <h5 class="mb-3">@((isEditing ? "✏️ Edit comment" : "➕ Add comment"))</h5>
+
+      <div class="row g-3">
+        <div class="col-12 col-md-3">
+          <label class="form-label">Author (user)</label>
+          <select class="form-select" @bind="formUserId" disabled="@isEditing">
+            <option value="">-- select user --</option>
+            @foreach (var u in users)
+            {
+              <option value="@u.Id">@u.UserName (@u.Id)</option>
+            }
+          </select>
+        </div>
+
+        <div class="col-12 col-md-3">
+          <label class="form-label">Post Id</label>
+          <input type="number" class="form-control" @bind="formPostId" />
+        </div>
+
+        <div class="col-12">
+          <label class="form-label">Comment</label>
+          <textarea class="form-control" rows="3" @bind="formBody"></textarea>
+        </div>
+
+        <div class="col-12">
+          @if (!isEditing)
+          {
+            <button class="btn btn-primary" @onclick="Create" disabled="@busy">
+              @if (busy) { <span class="spinner-border spinner-border-sm me-1"></span> } Post comment
+            </button>
+          }
+          else
+          {
+            <button class="btn btn-primary me-2" @onclick="Update" disabled="@busy">
+              @if (busy) { <span class="spinner-border spinner-border-sm me-1"></span> } Save
+            </button>
+            <button class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
+          }
+
+          @if (!string.IsNullOrWhiteSpace(ok)) { <span class="text-success ms-2">@ok</span> }
+          @if (!string.IsNullOrWhiteSpace(msg)) { <span class="text-danger ms-2">@msg</span> }
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- List -->
+  @if (items is null || items.Count == 0)
+  {
+    <div class="alert alert-light border">No comments found.</div>
+  }
+  else
+  {
+    <div class="vstack gap-2">
+      @foreach (var c in itemsFiltered)
+      {
+        var author =
+          string.IsNullOrWhiteSpace(c.AuthorName)
+            ? (usersById.TryGetValue(c.AuthorUserId, out var nm) ? nm : $"User {c.AuthorUserId}")
+            : c.AuthorName;
+
+        <div class="card">
+          <div class="card-body">
+            <div class="d-flex justify-content-between">
+              <div>
+                <span class="fw-semibold">@author</span>
+                <span class="text-muted">· Post #@c.PostId</span>
+              </div>
+              <div class="text-muted small">
+                @c.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")
+              </div>
+            </div>
+            <div class="mt-1">@c.Body</div>
+          </div>
+          <div class="card-footer d-flex gap-2">
+            <button class="btn btn-sm btn-outline-primary" @onclick="() => StartEdit(c)">Edit</button>
+            <button class="btn btn-sm btn-outline-danger"  @onclick="() => Delete(c.Id)">Delete</button>
+          </div>
+        </div>
+      }
+    </div>
+  }
+}
+
+@code {
+  // Data
+  private List<CommentDto>? items;
+  private List<UserDto> users = new();
+  private Dictionary<int, string> usersById = new();
+
+  // UI state
+  private bool loading, busy, isEditing;
+  private string? error, ok, msg;
+
+  // Filters
+  private string? filterText;
+  private string? filterPostIdString;
+  private int? filterPostId =>
+      int.TryParse(filterPostIdString, out var v) ? v : null;
+
+  // Form state
+  private int? formUserId;
+  private int formPostId;
+  private string? formBody;
+  private int editingId;
+
+  protected override async Task OnInitializedAsync() => await Load();
+
+  private async Task Load()
+  {
+    loading = true; error = ok = msg = null;
+    try
+    {
+      // Load all users (for name display and selection)
+      users = await UserSvc.GetAllUsersAsync();
+      usersById = users.ToDictionary(u => u.Id, u => u.UserName);
+
+      // Load all comments
+      items = await CommentSvc.GetAllCommentsAsync();
+
+      // If API didn’t include AuthorName, rendering will use usersById.
+    }
+    catch (Exception ex) { error = ex.Message; }
+    finally { loading = false; }
+  }
+
+  private IEnumerable<CommentDto> itemsFiltered =>
+    (items ?? new())
+      .Where(c => !filterPostId.HasValue || c.PostId == filterPostId.Value)
+      .Where(c =>
+      {
+        if (string.IsNullOrWhiteSpace(filterText)) return true;
+        var author = string.IsNullOrWhiteSpace(c.AuthorName)
+            ? (usersById.TryGetValue(c.AuthorUserId, out var nm) ? nm : $"User {c.AuthorUserId}")
+            : c.AuthorName;
+        return (c.Body?.Contains(filterText, StringComparison.OrdinalIgnoreCase) ?? false)
+               || (author?.Contains(filterText, StringComparison.OrdinalIgnoreCase) ?? false);
+      });
+
+  // Create
+  private async Task Create()
+  {
+    msg = ok = null;
+
+    if (!formUserId.HasValue || formUserId <= 0) { msg = "Please select a user."; return; }
+    if (formPostId <= 0) { msg = "Post Id must be > 0."; return; }
+    if (string.IsNullOrWhiteSpace(formBody)) { msg = "Comment cannot be empty."; return; }
+
+    busy = true;
+    try
+    {
+      var created = await CommentSvc.CreateCommentAsync(formPostId, new CreateCommentDto
+      {
+        PostId = formPostId,
+        Body = formBody!,
+        AuthorUserId = formUserId.Value
+      });
+
+      // Ensure AuthorName visible even if API didn’t populate it
+      if (string.IsNullOrWhiteSpace(created.AuthorName)
+          && usersById.TryGetValue(created.AuthorUserId, out var nm))
+      {
+        created.AuthorName = nm;
+      }
+
+      items ??= new();
+      items.Add(created);
+
+      // reset form
+      formBody = string.Empty;
+      ok = "Comment posted.";
+    }
+    catch (Exception ex) { msg = ex.Message; }
+    finally { busy = false; }
+  }
+
+  // Edit
+  private void StartEdit(CommentDto c)
+  {
+    isEditing = true;
+    editingId = c.Id;
+    formUserId = c.AuthorUserId; // disabled in UI while editing
+    formPostId = c.PostId;
+    formBody = c.Body;
+    ok = msg = null;
+  }
+
+  private async Task Update()
+  {
+    msg = ok = null;
+
+    if (editingId <= 0) { msg = "No comment selected."; return; }
+    if (formPostId <= 0) { msg = "Post Id must be > 0."; return; }
+    if (string.IsNullOrWhiteSpace(formBody)) { msg = "Comment cannot be empty."; return; }
+
+    busy = true;
+    try
+    {
+      // Your UpdateCommentDto requires PostId + Body
+      await CommentSvc.UpdateCommentAsync(editingId, new UpdateCommentDto
+      {
+        PostId = formPostId,
+        Body = formBody!
+      });
+
+      var existing = items!.FirstOrDefault(x => x.Id == editingId);
+      if (existing is not null)
+      {
+        existing.PostId = formPostId;
+        existing.Body = formBody!;
+        // keep AuthorUserId as-is
+      }
+
+      ok = "Comment updated.";
+      CancelEdit();
+    }
+    catch (Exception ex) { msg = ex.Message; }
+    finally { busy = false; }
+  }
+
+  private void CancelEdit()
+  {
+    isEditing = false;
+    editingId = 0;
+    formBody = null;
+    // keep formUserId/formPostId; they can be reused
+  }
+
+  // Delete
+  private async Task Delete(int id)
+  {
+    msg = ok = null;
+    try
+    {
+      await CommentSvc.DeleteCommentAsync(id);
+      items!.RemoveAll(x => x.Id == id);
+      ok = "Comment deleted.";
+      StateHasChanged();
+    }
+    catch (Exception ex) { msg = ex.Message; }
+  }
+}

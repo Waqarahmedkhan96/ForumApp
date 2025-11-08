@@ -84,14 +84,14 @@ public class CommentsController : ControllerBase
 
     // PUT /comments/{id}
     [HttpPut("{id:int}")]
-    public async Task<IActionResult> Update(int id, [FromBody] CreateCommentDto dto)
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateCommentDto dto) // <-- changed to UpdateCommentDto
     {
         var comment = new Comment
         {
             Id = id,
             Body = dto.Body,
             PostId = dto.PostId,
-            UserId = dto.AuthorUserId
+            //UserId = dto.AuthorUserId   // typically not changed on update
         };
 
         await _comments.UpdateAsync(comment); // repo handles NotFoundException
@@ -105,4 +105,47 @@ public class CommentsController : ControllerBase
         await _comments.DeleteAsync(id); // repo handles NotFoundException
         return NoContent();
     }
+
+    // GET /posts/{postId}/comments  (post-scoped list)
+[HttpGet("/posts/{postId:int}/comments")]
+public ActionResult<IEnumerable<CommentDto>> GetForPost(int postId)
+{
+    var list = _comments.GetManyAsync()
+        .Where(c => c.PostId == postId)
+        .Select(c => new CommentDto
+        {
+            Id = c.Id,
+            Body = c.Body,
+            PostId = c.PostId,
+            AuthorUserId = c.UserId
+        }).ToList();
+
+    return Ok(list);
+}
+
+// POST /posts/{postId}/comments  (create for a post)
+[HttpPost("/posts/{postId:int}/comments")]
+public async Task<ActionResult<CommentDto>> CreateForPost(int postId, [FromBody] CreateCommentDto dto)
+{
+    // Always take postId from route, ignore any mismatch from body
+    var toCreate = new Comment
+    {
+        Body = dto.Body,
+        PostId = postId,
+        UserId = dto.AuthorUserId
+    };
+
+    var created = await _comments.AddAsync(toCreate);
+
+    var result = new CommentDto
+    {
+        Id = created.Id,
+        Body = created.Body,
+        PostId = created.PostId,
+        AuthorUserId = created.UserId
+    };
+
+    return Created($"/comments/{result.Id}", result);
+}
+
 }

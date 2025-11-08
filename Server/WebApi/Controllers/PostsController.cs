@@ -11,17 +11,18 @@ namespace WebApi.Controllers;
 public class PostsController : ControllerBase
 {
     private readonly IPostRepository _posts;
+    private readonly ICommentRepository _comments; // ✅ add
 
-    public PostsController(IPostRepository posts)
+    public PostsController(IPostRepository posts, ICommentRepository comments) // ✅ inject
     {
         _posts = posts;
+        _comments = comments;
     }
 
     // POST /posts
     [HttpPost]
     public async Task<ActionResult<PostDto>> Create([FromBody] CreatePostDto dto)
     {
-        // Create post and let repository handle validation
         var post = new Post { Title = dto.Title, Body = dto.Body, UserId = dto.AuthorUserId };
         var created = await _posts.AddAsync(post);
 
@@ -40,7 +41,7 @@ public class PostsController : ControllerBase
     [HttpGet("{id:int}")]
     public async Task<ActionResult<PostDto>> GetById(int id)
     {
-        var post = await _posts.GetSingleAsync(id); // repo throws NotFoundException if not found
+        var post = await _posts.GetSingleAsync(id);
 
         var dto = new PostDto
         {
@@ -78,10 +79,13 @@ public class PostsController : ControllerBase
 
     // PUT /posts/{id}
     [HttpPut("{id:int}")]
-    public async Task<IActionResult> Update(int id, [FromBody] CreatePostDto dto)
+    public async Task<IActionResult> Update(int id, [FromBody] UpdatePostDto dto)
     {
-        var post = new Post { Id = id, Title = dto.Title, Body = dto.Body, UserId = dto.AuthorUserId };
-        await _posts.UpdateAsync(post); // repo throws NotFoundException if not found
+        var existingPost = await _posts.GetSingleAsync(id);   // keep same author
+        existingPost.Title = dto.Title;
+        existingPost.Body  = dto.Body;
+
+        await _posts.UpdateAsync(existingPost);
         return NoContent();
     }
 
@@ -89,7 +93,15 @@ public class PostsController : ControllerBase
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {
-        await _posts.DeleteAsync(id); // repo throws NotFoundException if not found
+        // ✅ cascade comments for this post
+        var commentIds = _comments.GetManyAsync()
+                                  .Where(c => c.PostId == id)
+                                  .Select(c => c.Id)
+                                  .ToList();
+        foreach (var cid in commentIds)
+            await _comments.DeleteAsync(cid);
+
+        await _posts.DeleteAsync(id);
         return NoContent();
     }
 }

@@ -1,0 +1,124 @@
+﻿@page "/"
+@using ApiContracts.Posts
+@using ApiContracts.Users
+@using ApiContracts.Comments
+@inject BlazorApp.Services.Interfaces.IPostService PostSvc
+@inject BlazorApp.Services.Interfaces.IUserService UserSvc
+@inject BlazorApp.Services.Interfaces.ICommentService CommentSvc
+
+<h4 class="mb-3">Feed</h4>
+
+<!-- Sort dropdown (Hot/New) -->
+<div class="d-flex align-items-center gap-2 mb-3">
+  <label class="text-muted">Sort by</label>
+  <select class="form-select brand-select" style="max-width:220px" @bind="sortMode">
+    <option value="hot">Hot</option>
+    <option value="new">New</option>
+  </select>
+</div>
+
+
+@if (loading)
+{
+  <Loading />
+}
+else if (items is null || items.Count == 0)
+{
+  <div class="alert alert-light border">No posts yet — be the first to share something!</div>
+}
+else
+{
+@foreach (var item in items)
+{
+  <BlazorApp.Components.PostCard
+      Post="item.Post"
+      Preview="item.Preview"
+      CommentCount="item.CommentCount" />
+}
+}
+
+@code {
+  private bool loading;
+
+  // Use a backing field so we can react when the user changes the dropdown
+  private string _sortMode = "hot";
+  private string sortMode
+  {
+    get => _sortMode;
+    set
+    {
+      if (_sortMode == value) return;
+      _sortMode = value;
+      // re-sort current items immediately
+      if (items is not null) items = ApplySort(items);
+      StateHasChanged();
+    }
+  }
+
+  private List<FeedItem>? items;
+
+  private class FeedItem
+  {
+    public required PostSummaryDto Post { get; set; }
+    public required string Preview { get; set; }
+    public int CommentCount { get; set; }
+  }
+
+  protected override async Task OnInitializedAsync() => await Load();
+
+  private async Task Load()
+  {
+    loading = true;
+    try
+    {
+      var summaries = await PostSvc.GetPostsAsync(new PostQueryParameters { TitleContains = null });
+
+      var users = await UserSvc.GetAllUsersAsync();
+      var usersById = users.ToDictionary(u => u.Id, u => u.UserName);
+
+      Dictionary<int,int> counts;
+      try
+      {
+        var allComments = await CommentSvc.GetAllCommentsAsync();
+        counts = allComments.GroupBy(c => c.PostId).ToDictionary(g => g.Key, g => g.Count());
+      }
+      catch
+      {
+        counts = new Dictionary<int,int>();
+      }
+
+      var list = new List<FeedItem>();
+      foreach (var s in summaries)
+      {
+        var full = await PostSvc.GetPostByIdAsync(s.Id);
+
+        s.AuthorName = usersById.TryGetValue(full.AuthorUserId, out var nm) ? nm : null;
+
+        var body = (full.Body ?? string.Empty).Trim();
+        body = body.Replace("\r\n", " ").Replace("\n", " ").Replace("\r", " ");
+        var preview = body.Length > 400 ? body[..400] + "…" : (string.IsNullOrWhiteSpace(body) ? "(no body)" : body);
+
+        list.Add(new FeedItem
+        {
+          Post = s,
+          Preview = preview,
+          CommentCount = counts.TryGetValue(s.Id, out var n) ? n : 0
+        });
+      }
+
+      items = ApplySort(list);
+    }
+    finally { loading = false; }
+  }
+
+  private List<FeedItem> ApplySort(IEnumerable<FeedItem> source)
+  {
+    return sortMode switch
+    {
+      "new" => source.OrderByDescending(i => i.Post.Id).ToList(),
+      "hot" or _ => source.OrderByDescending(i => i.CommentCount)
+                          .ThenByDescending(i => i.Post.Id)
+                          .ToList(),
+    };
+  }
+}

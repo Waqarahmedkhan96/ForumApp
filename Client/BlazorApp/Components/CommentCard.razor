@@ -1,0 +1,10 @@
+@using ApiContracts.Comments
+
+<div class="border rounded p-2 mb-2">
+  <div class="small text-muted">User @Comment.AuthorUserId</div>
+  <div>@Comment.Body</div>
+</div>
+
+@code {
+  [Parameter] public required CommentDto Comment { get; set; }
+}

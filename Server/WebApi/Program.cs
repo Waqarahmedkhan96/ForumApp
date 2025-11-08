@@ -13,6 +13,14 @@ var builder = WebApplication.CreateBuilder(args);
 // Controllers
 builder.Services.AddControllers();
 
+// Controllers + JSON settings
+//builder.Services.AddControllers()
+ //   .AddJsonOptions(o =>
+   // {
+     //   o.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+       // o.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    //});
+
 // Swagger (Swashbuckle)
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

@@ -1,8 +1,8 @@
 [
   {
     "id": 1,
-    "title": "assignment 4",
-    "body": "i completed my assignment 4 but getting red lines beacuse of sdks conflicts but my webapi is  running",
+    "title": "Assignment 4",
+    "body": "I completed my assignment 4 but getting red lines beacuse of sdks conflicts but my webapi is  running",
     "userId": 1
   },
   {
@@ -12,15 +12,27 @@
     "userId": 2
   },
   {
-    "id": 3,
-    "title": "Eshaal",
-    "body": "Lille S\u00F8stre",
+    "id": 4,
+    "title": "Post Updates",
+    "body": "Finally its working- Eshaal",
     "userId": 4
   },
   {
-    "id": 4,
-    "title": "Eshaal",
-    "body": "Lille S\u00F8stre",
-    "userId": 4
+    "id": 6,
+    "title": ".VS Code",
+    "body": "Nice \uD83D\uDC4F \u2014 looks like you\u2019re starting both your Blazor client and Web API projects \u2014 that\u2019s exactly the right way to run your Reddit-style forum app locally.",
+    "userId": 1
+  },
+  {
+    "id": 7,
+    "title": "C# - Best Coding Language",
+    "body": "It is the best coding language i have been learning so far",
+    "userId": 7
+  },
+  {
+    "id": 8,
+    "title": "Internship \u2013 Software Test Engineer in Healthcare Solutions",
+    "body": "Are you seeking an internship where you can apply your skills, learn from experienced professionals, and make a meaningful impact? At Systematic, we develop healthcare software that supports doctors, nurses, and patients every day. As a Software Test Engineer Intern, you will contribute to ensuring that our solutions are reliable and of the highest quality",
+    "userId": 1
   }
 ]

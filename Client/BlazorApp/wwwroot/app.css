@@ -1,0 +1,109 @@
+/* === THEME TOKENS === */
+:root{
+  --brand-green:#0F4F00;           /* main green */
+  --brand-gold:#B2993E;            /* gold */
+  --brand-green-light:#2E7D32;     /* hover green */
+
+  --ui-bg:#fff;
+  --ui-bg-alt:#f7f7f9;
+  --ui-border:#e5e7eb;
+  --ui-text:#222;
+  --ui-muted:#6b7280;
+}
+
+/* Base */
+body{ background:var(--ui-bg); color:var(--ui-text); }
+.card{ background:#fff; border-color:var(--ui-border); }
+
+/* Brand wordmark */
+.navbar-brand .brand-blazor{ color:var(--brand-green); }
+.navbar-brand .brand-forum{ color:var(--brand-gold); }
+
+/* Primary brand button */
+.btn-brand{
+  background:var(--brand-gold);
+  border-color:var(--brand-gold);
+  color:#111;
+}
+.btn-brand:hover,.btn-brand:focus{
+  background:var(--brand-green-light);
+  border-color:var(--brand-green-light);
+  color:#fff;
+}
+.btn-brand:active,.btn-brand.active{
+  background:var(--brand-green);
+  border-color:var(--brand-green);
+  color:#fff;
+}
+
+/* Outline (optional) */
+.btn-brand-outline{
+  background:transparent;
+  border-color:var(--brand-gold);
+  color:var(--brand-gold);
+}
+.btn-brand-outline:hover,.btn-brand-outline:focus{
+  background:var(--brand-green-light);
+  border-color:var(--brand-green-light);
+  color:#fff;
+}
+
+/* Filters/inputs */
+.brand-input,.brand-select{ border-color:var(--brand-gold); }
+.brand-input:focus,.brand-select:focus{
+  border-color:var(--brand-green-light);
+  box-shadow:0 0 0 .25rem rgba(15,79,0,.15);
+}
+
+/* Badges (comment count) */
+.badge-brand{ background:var(--brand-gold); color:#111; }
+
+/* Right rail headings */
+.right-rail .card-title{ color:var(--brand-green); }
+
+/* Simple responsive 3-col shell (used by MainLayout) */
+.app-shell{
+  display:grid; gap:1.25rem;
+  grid-template-columns:240px 1fr 320px;
+}
+@media (max-width: 991.98px){
+  .app-shell{ grid-template-columns:1fr; }
+  .left-rail{ display:none; } /* offcanvas takes over on small screens */
+}
+
+/* Header bits you already had */
+.header-left-spacer { width:240px; }
+.header-search { max-width:640px; flex:1 1 480px; }
+@media (max-width: 991.98px){ .header-left-spacer{ display:none; } }
+
+/* Nice nav look (works in rail + offcanvas) */
+.app-nav .nav-link{ color:#333; font-weight:500; padding:.6rem 1rem; border-radius:.5rem; }
+.app-nav .nav-link:hover{ background:#f5f5f5; text-decoration:none; }
+.app-nav .nav-link.active{ background:#e9ecef; font-weight:600; }
+
+/* Post card polish */
+.post-card{ border:1px solid #1d9c32; border-radius:.75rem; }
+.post-card:hover{ border-color:#B2993E; box-shadow:0 2px 10px rgba(0,0,0,.03); }
+
+
+
+/* === Header alignment === */
+/* Must match the visual width of the left rail column on lg+ */
+.header-left-spacer { width: 240px; }          /* adjust to taste */
+.header-search { background: #eeedea; max-width: 640px; flex: 1 1 480px; }
+
+/* Optional: nicer nav look in left rail */
+.app-nav .nav-link { 
+  color:#333; font-weight:500; padding:.6rem 1rem; border-radius:.5rem; 
+}
+.app-nav .nav-link:hover { background:#B2993E; text-decoration:none; }
+.app-nav .nav-link.active { background:#0F4F00; color: #ececec;font-weight:600; }
+
+/* Card polish (feed) */
+.post-card { border:1px solid #ececec; border-radius:.75rem; }
+.post-card:hover { border-color:#dcdcdc; box-shadow:0 2px 10px rgba(0,0,0,.03); }
+
+/* Keep things simple on mobile (no spacer needed) */
+@media (max-width: 991.98px){
+  .header-left-spacer { display: none; }
+}

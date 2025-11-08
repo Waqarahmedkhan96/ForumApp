@@ -1,0 +1,110 @@
+﻿@inherits LayoutComponentBase
+@using Microsoft.AspNetCore.Components.Web
+@inject NavigationManager Nav
+
+<div class="min-vh-100 d-flex flex-column">
+  <!-- HEADER -->
+  <header class="border-bottom bg-white position-sticky top-0" style="z-index:1020;">
+    <div class="container-xxl d-flex align-items-center gap-3 py-2 px-3 w-100">
+
+      <!-- Hamburger (sm/md only) -->
+      <button class="btn btn-brand-outline d-lg-none"
+              type="button"
+              data-bs-toggle="offcanvas"
+              data-bs-target="#leftNavOffcanvas"
+              aria-controls="leftNavOffcanvas"
+              aria-label="Open menu">
+        <!-- Always-visible SVG icon -->
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
+
+      <!-- Brand (colored via CSS) -->
+      <a class="navbar-brand fw-bold text-decoration-none" href="/">
+        <span class="brand-blazor text-lowercase">Blazor</span><span class="brand-forum fw-semibold">Forum</span>
+      </a>
+
+      <!-- Align search with left rail on lg+ -->
+      <div class="d-none d-lg-block header-left-spacer"></div>
+
+      <!-- Search -->
+      <input class="form-control header-search"
+             placeholder="Search blazor forum…"
+             @bind="headerSearch" @bind:event="oninput"
+             @onkeydown="OnHeaderSearchKey" />
+
+      <!-- Right actions -->
+      <div class="ms-auto d-flex align-items-center gap-2">
+        <div class="position-relative">
+          <button type="button" class="btn btn-brand-outline" @onclick="ToggleLoginMenu">
+            Log in
+          </button>
+          @if (showLoginMenu)
+          {
+            <div class="dropdown-menu show shadow-sm" style="right:0; left:auto; top:100%; position:absolute;">
+              <a class="dropdown-item" href="/login">Log in</a>
+              <a class="dropdown-item" href="/signup">Sign up</a>
+            </div>
+          }
+        </div>
+        <a href="/help" class="btn btn-brand">Help</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- BODY -->
+  <main class="container-xxl my-3 app-shell">
+    <!-- Left rail (desktop) -->
+    <aside class="left-rail">
+      <NavMenu />
+    </aside>
+
+    <!-- Main content -->
+    <section>
+      @Body
+    </section>
+
+    <!-- Right rail -->
+    <aside class="right-rail">
+      <RightSidebar />
+    </aside>
+  </main>
+
+  <!-- OFFCANVAS left nav (mobile) -->
+  <div class="offcanvas offcanvas-start" tabindex="-1" id="leftNavOffcanvas" aria-labelledby="leftNavLabel">
+    <div class="offcanvas-header">
+      <h5 class="offcanvas-title" id="leftNavLabel">Navigation</h5>
+      <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body p-2">
+      <NavMenu />
+    </div>
+  </div>
+
+  <footer class="text-center text-muted small py-3 border-top bg-white">
+    © @DateTime.Now.Year BlazorForum
+  </footer>
+</div>
+
+<!-- Load Bootstrap JS bundle so offcanvas/hamburger works -->
+<script src="/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+
+@code {
+  private string? headerSearch;
+  private bool showLoginMenu;
+
+  private void ToggleLoginMenu() => showLoginMenu = !showLoginMenu;
+
+  private void OnHeaderSearchKey(KeyboardEventArgs e)
+  {
+    if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(headerSearch))
+      Nav.NavigateTo($"/posts?title={Uri.EscapeDataString(headerSearch!)}");
+  }
+
+  protected override void OnAfterRender(bool firstRender)
+  {
+    if (firstRender)
+      Nav.LocationChanged += (_, __) => { showLoginMenu = false; StateHasChanged(); };
+  }
+}

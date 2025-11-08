@@ -1,0 +1,151 @@
+@page "/users"
+@using ApiContracts.Users
+@inject BlazorApp.Services.Interfaces.IUserService UsersSvc
+@inject IJSRuntime JS 
+
+ <!-- ✅ add -->
+
+<h4 class="mb-3">👥 Manage Users</h4>
+
+<!-- Filter + Create Button -->
+<div class="d-flex gap-2 mb-3">
+  <input class="form-control" placeholder="Filter by name..." 
+         @bind="filter" @bind:event="oninput" />
+  <button class="btn btn-secondary" @onclick="LoadUsers">Search</button>
+</div>
+
+<!-- Create / Edit Form -->
+<div class="card mb-4">
+  <div class="card-body">
+    <h5>@(isEditing ? "✏️ Edit User" : "➕ Add User")</h5>
+    <div class="mb-3">
+      <label class="form-label">User Name</label>
+      <input class="form-control" @bind="userModel.UserName" />
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Password</label>
+      <input class="form-control" type="password" @bind="userModel.Password" />
+    </div>
+
+    <button class="btn btn-primary me-2" @onclick="SaveUser">
+      @(isEditing ? "Update" : "Create")
+    </button>
+    @if (isEditing)
+    {
+      <button class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
+    }
+  </div>
+</div>
+
+<!-- Users List -->
+@if (users is null)
+{
+  <p>Loading...</p>
+}
+else if (users.Count == 0)
+{
+  <p>No users yet — create your first user.</p>
+}
+else
+{
+  <table class="table table-hover">
+    <thead>
+      <tr>
+        <th style="width:80px;">ID</th>
+        <th>UserName</th>
+        <th style="width:180px;" class="text-end">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      @foreach (var u in users.Where(u => 
+        string.IsNullOrWhiteSpace(filter) ||
+        u.UserName.Contains(filter, StringComparison.OrdinalIgnoreCase)))
+      {
+        <tr>
+          <td>@u.Id</td>
+          <td>@u.UserName</td>
+          <td class="text-end">
+            <button class="btn btn-sm btn-outline-primary me-2" 
+                    @onclick="() => StartEdit(u)">
+              Edit
+            </button>
+            <button class="btn btn-sm btn-outline-danger" 
+                    @onclick="() => Delete(u.Id, u.UserName)">
+              Delete
+            </button>
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+}
+
+@code {
+  private List<UserDto>? users;
+  private string? filter;
+
+  private CreateUserDto userModel = new() { UserName = "", Password = "" };
+  private bool isEditing = false;
+  private int editingUserId;
+
+  protected override async Task OnInitializedAsync() => await LoadUsers();
+
+  private async Task LoadUsers()
+  {
+    users = await UsersSvc.GetAllUsersAsync();
+    StateHasChanged();
+  }
+
+  private async Task SaveUser()
+  {
+    if (string.IsNullOrWhiteSpace(userModel.UserName))
+      return;
+
+    if (isEditing)
+    {
+      var updateDto = new UpdateUserDto
+      {
+        UserName = userModel.UserName,
+        Password = userModel.Password
+      };
+      await UsersSvc.UpdateUserAsync(editingUserId, updateDto);
+      isEditing = false;
+    }
+    else
+    {
+      await UsersSvc.AddUserAsync(userModel);
+    }
+
+    userModel = new CreateUserDto { UserName = "", Password = "" };
+    await LoadUsers();
+  }
+
+  private void StartEdit(UserDto u)
+  {
+    editingUserId = u.Id;
+    userModel.UserName = u.UserName;
+    userModel.Password = "";
+    isEditing = true;
+  }
+
+  private void CancelEdit()
+  {
+    isEditing = false;
+    userModel = new CreateUserDto { UserName = "", Password = "" };
+  }
+
+  // ✅ Confirmation + delete
+  private async Task Delete(int id, string name)
+  {
+    var msg =
+      $"Delete user '{name}' (ID {id})?\n\n" +
+      "This will permanently delete ALL your posts and ALL your comments. " +
+      "This action cannot be undone.";
+    var ok = await JS.InvokeAsync<bool>("confirm", msg);
+    if (!ok) return;
+
+    await UsersSvc.DeleteUserAsync(id); // server cascades
+    users!.RemoveAll(x => x.Id == id);
+    StateHasChanged();
+  }
+}

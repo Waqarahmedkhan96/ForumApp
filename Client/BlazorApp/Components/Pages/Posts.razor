@@ -1,0 +1,221 @@
+@page "/posts"
+@using ApiContracts.Posts
+@using ApiContracts.Users
+@inject BlazorApp.Services.Interfaces.IPostService postService
+@inject BlazorApp.Services.Interfaces.IUserService userService
+
+<h4 class="mb-3">Posts</h4>
+
+<!-- CREATE / EDIT FORM (one form for both) -->
+<div class="card mb-4">
+  <div class="card-body">
+    <h5 class="mb-3">@(isEditing ? "Edit Post" : "Create a Post")</h5>
+
+    <div class="row g-3">
+      <div class="col-12">
+        <label class="form-label">Title</label>
+        <input class="form-control" @bind="title" />
+      </div>
+
+      <div class="col-12">
+        <label class="form-label">Body</label>
+        <textarea class="form-control" rows="5" @bind="body"></textarea>
+      </div>
+
+      <div class="col-12 col-md-4">
+        <label class="form-label">Author User Id</label>
+        <input type="number" class="form-control" @bind="authorId" disabled="@isEditing" />
+        @* UpdatePostDto does not change AuthorUserId, so disable during edit *@
+      </div>
+
+      <div class="col-12">
+        @if (!isEditing)
+        {
+          <button class="btn btn-success" @onclick="Create" disabled="@busy">
+            @if (busy) { <span class="spinner-border spinner-border-sm me-1"></span> } Publish
+          </button>
+        }
+        else
+        {
+          <button class="btn btn-primary me-2" @onclick="Update" disabled="@busy">
+            @if (busy) { <span class="spinner-border spinner-border-sm me-1"></span> } Save changes
+          </button>
+          <button class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(error)) { <span class="text-danger ms-2">@error</span> }
+        @if (!string.IsNullOrWhiteSpace(ok))    { <span class="text-success ms-2">@ok</span> }
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FILTER + LIST -->
+<div class="d-flex gap-2 mb-3">
+  <input class="form-control" placeholder="Title contains..." @bind="titleFilter" @bind:event="oninput" />
+  <button class="btn btn-outline-secondary" @onclick="Load">Search</button>
+</div>
+
+@if (loading)
+{
+  <Loading />
+}
+else if (items is null || items.Count == 0)
+{
+  <div class="alert alert-light border">No posts found.</div>
+}
+else
+{
+  @foreach (var p in items)
+  {
+    <div class="card mb-2">
+      <div class="card-body">
+        <a class="h5 text-decoration-none" href="/posts/@p.Id">@p.Title</a>
+        <div class="text-muted small">
+          by @(string.IsNullOrWhiteSpace(p.AuthorName) ? "Unknown" : p.AuthorName)
+        </div>
+      </div>
+      <div class="card-footer d-flex gap-2">
+        <a class="btn btn-sm btn-outline-secondary" href="/posts/@p.Id">View</a>
+        <button class="btn btn-sm btn-outline-primary" @onclick="() => StartEdit(p.Id)">Edit</button>
+        <button class="btn btn-sm btn-outline-danger"  @onclick="() => Delete(p.Id)">Delete</button>
+      </div>
+    </div>
+  }
+}
+
+@code {
+  // list + filter
+  private string? titleFilter;
+  private List<PostSummaryDto>? items;
+  private bool loading;
+
+  // create/edit form state
+  private string? title, body, error, ok;
+  private int authorId = 1;   // for create; disabled while editing
+  private bool busy, isEditing = false;
+  private int editingPostId;
+
+  protected override async Task OnInitializedAsync() => await Load();
+
+  // Load summaries, enrich with author names (without changing your API)
+  private async Task Load()
+  {
+    loading = true; error = ok = null;
+    try
+    {
+      // 1) summaries (Id, Title)
+      var summaries = await postService.GetPostsAsync(
+        new PostQueryParameters { TitleContains = titleFilter });
+
+      // 2) users → dictionary
+      var users = await userService.GetAllUsersAsync();
+      var usersById = users.ToDictionary(u => u.Id, u => u.UserName);
+
+      // 3) for each summary, fetch full post to know AuthorUserId, then set AuthorName
+      foreach (var s in summaries)
+      {
+        var full = await postService.GetPostByIdAsync(s.Id);
+        s.AuthorName = usersById.TryGetValue(full.AuthorUserId, out var name) ? name : null;
+      }
+
+      items = summaries;
+    }
+    finally { loading = false; }
+  }
+
+  // CREATE
+  private async Task Create()
+  {
+    error = ok = null;
+    if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(body))
+    {
+      error = "Title and Body are required.";
+      return;
+    }
+
+    busy = true;
+    try
+    {
+      await postService.CreatePostAsync(new CreatePostDto
+      {
+        Title = title!, Body = body!, AuthorUserId = authorId
+      });
+
+      title = body = string.Empty;
+      ok = "Post published.";
+      await Load();
+    }
+    catch (Exception ex) { error = ex.Message; }
+    finally { busy = false; }
+  }
+
+  // ENTER EDIT MODE
+  private async Task StartEdit(int id)
+  {
+    error = ok = null;
+    try
+    {
+      var full = await postService.GetPostByIdAsync(id); // need Body + AuthorUserId
+      editingPostId = id;
+      title   = full.Title;
+      body    = full.Body;
+      authorId = full.AuthorUserId; // shown but disabled
+      isEditing = true;
+    }
+    catch (Exception ex) { error = ex.Message; }
+  }
+
+  // UPDATE
+  private async Task Update()
+  {
+    error = ok = null;
+    if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(body))
+    {
+      error = "Title and Body are required.";
+      return;
+    }
+
+    busy = true;
+    try
+    {
+      await postService.UpdatePostAsync(editingPostId, new UpdatePostDto
+      {
+        Title = title!, Body = body!
+      });
+
+      ok = "Post updated.";
+      isEditing = false;
+      title = body = string.Empty;
+      await Load();
+    }
+    catch (Exception ex) { error = ex.Message; }
+    finally { busy = false; }
+  }
+
+  private void CancelEdit()
+  {
+    isEditing = false;
+    title = body = string.Empty;
+    ok = error = null;
+  }
+
+  // DELETE
+  private async Task Delete(int id)
+  {
+    error = ok = null;
+    if (!await Confirm($"Delete post #{id}?")) return;
+
+    try
+    {
+      await postService.DeletePostAsync(id);
+      items!.RemoveAll(x => x.Id == id);
+      ok = "Post deleted.";
+      StateHasChanged();
+    }
+    catch (Exception ex) { error = ex.Message; }
+  }
+
+  // Minimal confirm placeholder
+  private Task<bool> Confirm(string _) => Task.FromResult(true);
+}

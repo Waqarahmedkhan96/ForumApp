@@ -10,5 +10,23 @@
     "body": "I am going step by step the assignment as its going well so far - Gean",
     "postId": 2,
     "userId": 3
+  },
+  {
+    "id": 3,
+    "body": "bla bla",
+    "postId": 1,
+    "userId": 5
+  },
+  {
+    "id": 4,
+    "body": "haha",
+    "postId": 1,
+    "userId": 8
+  },
+  {
+    "id": 5,
+    "body": "nononon",
+    "postId": 1,
+    "userId": 5
   }
 ]
