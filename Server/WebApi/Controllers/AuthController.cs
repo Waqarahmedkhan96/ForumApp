@@ -1,0 +1,47 @@
+using Microsoft.AspNetCore.Mvc;
+using RepositoryContracts;
+using ApiContracts.Authentication;
+using ApiContracts.Users;
+using System.Linq;
+
+namespace WebApi.Controllers
+{
+    [ApiController]
+    [Route("[controller]")]
+    public class AuthController : ControllerBase
+    {
+        private readonly IUserRepository users;
+
+        public AuthController(IUserRepository users)
+        {
+            this.users = users;
+        }
+
+        [HttpPost("login")]
+        public ActionResult<UserDto> Login([FromBody] LoginRequest loginRequest)
+        {
+            // 1️⃣ Find user by username
+            var user = users.GetManyAsync()
+                .FirstOrDefault(u =>
+                    string.Equals(u.Username, loginRequest.UserName, StringComparison.OrdinalIgnoreCase));
+
+            // 2️⃣ If not found → Unauthorized
+            if (user is null)
+                return Unauthorized("Invalid username or password.");
+
+            // 3️⃣ Check password
+            if (user.Password != loginRequest.Password)
+                return Unauthorized("Invalid username or password.");
+
+            // 4️⃣ Convert to DTO (never send password)
+            var dto = new UserDto
+            {
+                Id = user.Id,
+                UserName = user.Username
+            };
+
+            // 5️⃣ Return always the UserDto not the object itself
+            return Ok(dto);
+        }
+    }
+}

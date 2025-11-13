@@ -4,6 +4,16 @@
     <ProjectReference Include="..\..\Shared\ApiContracts\ApiContracts.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Components\Authentication\" />
+  </ItemGroup>
+
+  <!-- REMOVE this whole ItemGroup to silence NU1510
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="9.0.0" />
+  </ItemGroup>
+  -->
+
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>

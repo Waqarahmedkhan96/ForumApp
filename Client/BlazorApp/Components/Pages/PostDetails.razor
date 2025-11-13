@@ -5,66 +5,8 @@
 @inject BlazorApp.Services.Interfaces.IPostService PostSvc
 @inject BlazorApp.Services.Interfaces.IUserService UserSvc
 @inject BlazorApp.Services.Interfaces.ICommentService CommentSvc
-
-@code {
-    [Parameter] public int id { get; set; }
-
-    private PostDto? post;
-    private string? authorName;
-    private List<CommentDto>? comments;
-    private List<UserDto> users = new();
-    private int selectedUserId; // choose a registered user to comment as
-    private string newComment = "";
-    private string? error;
-
-    protected override async Task OnInitializedAsync()
-    {
-        try
-        {
-            // post + author name
-            post = await PostSvc.GetPostByIdAsync(id);
-            users = await UserSvc.GetAllUsersAsync();
-            authorName = users.FirstOrDefault(u => u.Id == post!.AuthorUserId)?.UserName ?? "Unknown";
-
-            // initial selected user (first in list if any)
-            selectedUserId = users.FirstOrDefault()?.Id ?? 0;
-
-            // comments (we'll enrich with author names below in UI)
-            comments = await CommentSvc.GetCommentsByPostIdAsync(id);
-        }
-        catch (Exception ex)
-        {
-            error = ex.Message;
-        }
-    }
-
-    private async Task AddComment()
-    {
-        error = null;
-        if (selectedUserId <= 0 || string.IsNullOrWhiteSpace(newComment)) return;
-
-        try
-        {
-            await CommentSvc.CreateCommentAsync(id, new CreateCommentDto
-            {
-                PostId = id,               // server uses route; this is fine
-                AuthorUserId = selectedUserId,
-                Body = newComment
-            });
-
-            newComment = "";
-            // reload comments
-            comments = await CommentSvc.GetCommentsByPostIdAsync(id);
-        }
-        catch (Exception ex)
-        {
-            error = ex.Message;
-        }
-    }
-
-    private string NameFor(int userId) =>
-        users.FirstOrDefault(u => u.Id == userId)?.UserName ?? "Unknown";
-}
+@inject AuthenticationStateProvider AuthProvider
+@inject NavigationManager Nav   // nav service
 
 @if (!string.IsNullOrWhiteSpace(error))
 {
@@ -76,6 +18,12 @@ else if (post is null)
 }
 else
 {
+    <div class="mb-3">
+        <button class="btn btn-outline-secondary btn-sm" @onclick="GoBack">
+            ← Back
+        </button>
+    </div>
+
     <div class="mb-4">
         <h3 class="mb-1">@post.Title</h3>
         <div class="text-muted mb-3">by @authorName</div>
@@ -104,29 +52,101 @@ else
 
     <div class="card">
         <div class="card-body">
-            <h6 class="mb-3">Add a comment</h6>
+            <h6 class="mb-2">Add a comment</h6>
 
-            <div class="row g-2 align-items-center mb-2">
-                <div class="col-auto">
-                    <label class="col-form-label">User</label>
+            @* login info *@
+            @if (currentUserId <= 0)
+            {
+                <div class="alert alert-info py-2 mb-2 small">
+                    Please log in to your account to post a comment.
                 </div>
-                <div class="col-auto">
-                    <select class="form-select" style="min-width: 220px"
-                            @bind="selectedUserId">
-                        @foreach (var u in users)
-                        {
-                            <option value="@u.Id">@u.UserName</option>
-                        }
-                    </select>
-                </div>
+            }
+
+            <div class="mb-2">
+                <input class="form-control"
+                       value="@(currentUserId > 0 ? $"{currentUserName} ({currentUserId})" : "Not logged in")"
+                       disabled />
             </div>
-
             <textarea class="form-control mb-2" rows="3" placeholder="Write a comment…"
                       @bind="newComment"></textarea>
 
-            <button class="btn btn-primary" @onclick="AddComment" disabled="@string.IsNullOrWhiteSpace(newComment)">
+            <button class="btn btn-primary"
+                    @onclick="AddComment"
+                    disabled="@(currentUserId <= 0 || string.IsNullOrWhiteSpace(newComment))">
                 Post comment
             </button>
         </div>
     </div>
+}
+
+@code {
+    [Parameter] public int id { get; set; }
+
+    private PostDto? post;
+    private string? authorName;
+    private List<CommentDto>? comments;
+    private List<UserDto> users = new();
+    private string newComment = "";
+    private string? error;
+
+    // ADDED
+    private int currentUserId;
+    private string currentUserName = "Unknown";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // load auth state
+            var auth = await AuthProvider.GetAuthenticationStateAsync();
+            currentUserId = int.TryParse(auth.User.FindFirst("Id")?.Value, out var idc) ? idc : 0;
+            currentUserName = auth.User.Identity?.Name ?? "Unknown";
+
+            // load post data
+            post = await PostSvc.GetPostByIdAsync(id);
+            users = await UserSvc.GetAllUsersAsync();
+            authorName = users.FirstOrDefault(u => u.Id == post!.AuthorUserId)?.UserName ?? "Unknown";
+
+            comments = await CommentSvc.GetCommentsByPostIdAsync(id);
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+    }
+
+    private async Task AddComment() // create comment
+    {
+        error = null;
+
+        if (currentUserId <= 0)
+        {
+            error = "Please log in to your account to add a comment.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(newComment)) return;
+
+        try
+        {
+            await CommentSvc.CreateCommentAsync(id, new CreateCommentDto
+            {
+                PostId = id,
+                AuthorUserId = currentUserId,   // ADDED
+                Body = newComment
+            });
+
+            newComment = "";
+            comments = await CommentSvc.GetCommentsByPostIdAsync(id);
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+    }
+
+    private string NameFor(int userId) => // author lookup
+        users.FirstOrDefault(u => u.Id == userId)?.UserName ?? "Unknown";
+
+    private void GoBack() => Nav.NavigateTo("/posts"); // back to posts
 }

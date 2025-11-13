@@ -1,0 +1,91 @@
+@page "/signup"
+@rendermode InteractiveServer  
+@* <= make this page interactive so @onclick works *@
+@using ApiContracts.Users
+@using Microsoft.AspNetCore.Components.Authorization
+@inject NavigationManager Nav
+@inject BlazorApp.Services.Interfaces.IUserService UserService
+
+<h4 class="mb-3">Sign up</h4>
+
+<div class="card">
+  <div class="card-body">
+    <div class="mb-3">
+      <label class="form-label">Username</label>
+      <input class="form-control" @bind="userName" />
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Password</label>
+      <input class="form-control" type="password" @bind="password" />
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Confirm Password</label>
+      <input class="form-control" type="password" @bind="confirm" />
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(error))
+    {
+      <div class="alert alert-danger" role="alert">@error</div>
+    }
+
+    <button class="btn btn-success" @onclick="HandleSignup" disabled="@isBusy">
+      @(isBusy ? "Creating account..." : "Create account")
+    </button>
+    <button class="btn btn-secondary ms-2" @onclick="GoLogin">Back to Login</button>
+    @* ^^^ FIX: avoid nested quotes by calling a method instead of inline lambda with "/login" *@
+  </div>
+</div>
+
+@code {
+  private string userName = string.Empty;
+  private string password = string.Empty;
+  private string confirm = string.Empty;
+  private bool isBusy = false;
+  private string? error;
+
+  private async Task HandleSignup()
+  {
+    if (isBusy) return;
+    error = null;
+
+    if (string.IsNullOrWhiteSpace(userName) || string.IsNullOrWhiteSpace(password))
+    {
+      error = "Please provide both username and password.";
+      return;
+    }
+    if (!string.Equals(password, confirm))
+    {
+      error = "Passwords do not match.";
+      return;
+    }
+
+    try
+    {
+      isBusy = true;
+
+      // Uses your IUserService API contract
+      var create = new CreateUserDto
+      {
+        UserName = userName,
+        Password = password
+      };
+
+      UserDto created = await UserService.AddUserAsync(create);
+
+      // After successful signup, send user to Login page to sign in
+      Nav.NavigateTo("/login");
+    }
+    catch (Exception ex)
+    {
+      error = ex.Message;
+    }
+    finally
+    {
+      isBusy = false;
+    }
+  }
+
+  private void GoLogin() => Nav.NavigateTo("/login"); // <-- clean navigate handler
+}

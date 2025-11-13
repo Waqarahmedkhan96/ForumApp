@@ -11,13 +11,13 @@ namespace WebApi.Controllers;
 [Route("[controller]")]
 public class UsersController : ControllerBase
 {
-    private readonly IUserRepository _repo;
+    private readonly IUserRepository _users;
     private readonly IPostRepository _posts;       // ✅ add
     private readonly ICommentRepository _comments; // ✅ add
 
-    public UsersController(IUserRepository repo, IPostRepository posts, ICommentRepository comments) // ✅ inject
+    public UsersController(IUserRepository user, IPostRepository posts, ICommentRepository comments) // ✅ inject
     {
-        _repo = repo;
+        _users = user;
         _posts = posts;
         _comments = comments;
     }
@@ -27,7 +27,7 @@ public class UsersController : ControllerBase
     public async Task<ActionResult<UserDto>> AddUser([FromBody] CreateUserDto request)
     {
         var user = new User(request.UserName, request.Password);
-        var created = await _repo.AddAsync(user);
+        var created = await _users.AddAsync(user);
 
         var dto = new UserDto { Id = created.Id, UserName = created.Username };
         return Created($"/users/{dto.Id}", dto);
@@ -37,7 +37,7 @@ public class UsersController : ControllerBase
     [HttpGet("{id:int}")]
     public async Task<ActionResult<UserDto>> GetUser(int id)
     {
-        var user = await _repo.GetSingleAsync(id);
+        var user = await _users.GetSingleAsync(id);
         var dto = new UserDto { Id = user.Id, UserName = user.Username };
         return Ok(dto);
     }
@@ -46,7 +46,7 @@ public class UsersController : ControllerBase
     [HttpGet]
     public ActionResult<IEnumerable<UserDto>> GetUsers([FromQuery] string? usernameContains)
     {
-        var query = _repo.GetManyAsync();
+        var query = _users.GetManyAsync();
 
         if (!string.IsNullOrWhiteSpace(usernameContains))
         {
@@ -68,7 +68,7 @@ public class UsersController : ControllerBase
     public async Task<IActionResult> UpdateUser(int id, [FromBody] CreateUserDto request)
     {
         var user = new User(request.UserName, request.Password) { Id = id };
-        await _repo.UpdateAsync(user);
+        await _users.UpdateAsync(user);
         return NoContent();
     }
 
@@ -104,7 +104,7 @@ public class UsersController : ControllerBase
             await _posts.DeleteAsync(pid);
 
         // 3) finally delete the user
-        await _repo.DeleteAsync(id);
+        await _users.DeleteAsync(id);
 
         return NoContent();
     }

@@ -28,5 +28,71 @@
     "body": "nononon",
     "postId": 1,
     "userId": 5
+  },
+  {
+    "id": 6,
+    "body": "i just completed my assignment 06 yahooo!!!!!!",
+    "postId": 1,
+    "userId": 10
+  },
+  {
+    "id": 7,
+    "body": "Bla bla",
+    "postId": 11,
+    "userId": 11
+  },
+  {
+    "id": 8,
+    "body": "I know why your name is not shown its because you do not exist anymore but your post still.",
+    "postId": 4,
+    "userId": 12
+  },
+  {
+    "id": 9,
+    "body": "Bla bla",
+    "postId": 1,
+    "userId": 12
+  },
+  {
+    "id": 10,
+    "body": "bla bla bla",
+    "postId": 11,
+    "userId": 12
+  },
+  {
+    "id": 11,
+    "body": "hhv",
+    "postId": 1,
+    "userId": 12
+  },
+  {
+    "id": 12,
+    "body": "I am rauf and yeah",
+    "postId": 1,
+    "userId": 13
+  },
+  {
+    "id": 13,
+    "body": "you are still un-known\n",
+    "postId": 4,
+    "userId": 13
+  },
+  {
+    "id": 14,
+    "body": "i can comment @chan",
+    "postId": 15,
+    "userId": 13
+  },
+  {
+    "id": 15,
+    "body": "haha",
+    "postId": 14,
+    "userId": 12
+  },
+  {
+    "id": 16,
+    "body": "haha",
+    "postId": 14,
+    "userId": 12
   }
 ]

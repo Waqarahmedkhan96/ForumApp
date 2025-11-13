@@ -1,6 +1,12 @@
 ﻿@inherits LayoutComponentBase
-@using Microsoft.AspNetCore.Components.Web
+@implements IDisposable
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.AspNetCore.Components.Authorization
 @inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthProvider
+@inject BlazorApp.Services.Auth.SimpleAuthProvider SimpleAuth
+@inject IJSRuntime JS
 
 <div class="min-vh-100 d-flex flex-column">
   <!-- HEADER -->
@@ -14,21 +20,17 @@
               data-bs-target="#leftNavOffcanvas"
               aria-controls="leftNavOffcanvas"
               aria-label="Open menu">
-        <!-- Always-visible SVG icon -->
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
           <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
         </svg>
       </button>
 
-      <!-- Brand (colored via CSS) -->
       <a class="navbar-brand fw-bold text-decoration-none" href="/">
         <span class="brand-blazor text-lowercase">Blazor</span><span class="brand-forum fw-semibold">Forum</span>
       </a>
 
-      <!-- Align search with left rail on lg+ -->
       <div class="d-none d-lg-block header-left-spacer"></div>
 
-      <!-- Search -->
       <input class="form-control header-search"
              placeholder="Search blazor forum…"
              @bind="headerSearch" @bind:event="oninput"
@@ -36,46 +38,47 @@
 
       <!-- Right actions -->
       <div class="ms-auto d-flex align-items-center gap-2">
-        <div class="position-relative">
-          <button type="button" class="btn btn-brand-outline" @onclick="ToggleLoginMenu">
-            Log in
+        <div class="dropdown">
+          <button type="button"
+                  class="btn btn-brand-outline dropdown-toggle d-flex align-items-center gap-2"
+                  data-bs-toggle="dropdown" aria-expanded="false">
+            <!-- human icon -->
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg>
+            <span>@(isLoggedIn ? userName : "Account")</span>
           </button>
-          @if (showLoginMenu)
-          {
-            <div class="dropdown-menu show shadow-sm" style="right:0; left:auto; top:100%; position:absolute;">
-              <a class="dropdown-item" href="/login">Log in</a>
-              <a class="dropdown-item" href="/signup">Sign up</a>
-            </div>
-          }
+          <ul class="dropdown-menu dropdown-menu-end">
+            @if (!isLoggedIn)
+            {
+              <li><a class="dropdown-item" href="/login">Sign in</a></li>
+              <li><a class="dropdown-item" href="/signup">Sign up</a></li>
+            }
+            else
+            {
+              <li><button class="dropdown-item" @onclick="Logout">Log out</button></li>
+            }
+          </ul>
         </div>
         <a href="/help" class="btn btn-brand">Help</a>
       </div>
     </div>
   </header>
 
-  <!-- BODY -->
   <main class="container-xxl my-3 app-shell">
-    <!-- Left rail (desktop) -->
     <aside class="left-rail">
       <NavMenu />
     </aside>
-
-    <!-- Main content -->
     <section>
       @Body
     </section>
-
-    <!-- Right rail -->
     <aside class="right-rail">
       <RightSidebar />
     </aside>
   </main>
 
-  <!-- OFFCANVAS left nav (mobile) -->
   <div class="offcanvas offcanvas-start" tabindex="-1" id="leftNavOffcanvas" aria-labelledby="leftNavLabel">
     <div class="offcanvas-header">
       <h5 class="offcanvas-title" id="leftNavLabel">Navigation</h5>
-      <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+      <button class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
     </div>
     <div class="offcanvas-body p-2">
       <NavMenu />
@@ -87,14 +90,46 @@
   </footer>
 </div>
 
-<!-- Load Bootstrap JS bundle so offcanvas/hamburger works -->
-<script src="/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-
 @code {
   private string? headerSearch;
-  private bool showLoginMenu;
+  private bool isLoggedIn;
+  private string userName = "";
 
-  private void ToggleLoginMenu() => showLoginMenu = !showLoginMenu;
+  // keep a handler reference so we can unsubscribe on dispose
+  private EventHandler<LocationChangedEventArgs>? _locChangedHandler;
+
+  protected override async Task OnInitializedAsync()
+  {
+    // Restore cached user (if any) so refresh keeps you logged in
+    await SimpleAuth.RestoreFromSessionAsync();
+
+    await UpdateHeaderFromAuthAsync();
+
+    // react to URL changes (close menus / refresh header if needed)
+    _locChangedHandler = (_, __) => InvokeAsync(StateHasChanged);
+    Nav.LocationChanged += _locChangedHandler;
+
+    // react to auth changes (login/logout) and update header text live
+    AuthProvider.AuthenticationStateChanged += OnAuthChanged;
+  }
+
+  private async void OnAuthChanged(Task<AuthenticationState> task)
+  {
+    try
+    {
+      await task; // ensure completed
+      await InvokeAsync(UpdateHeaderFromAuthAsync);
+    }
+    catch { /* ignore */ }
+  }
+
+  private async Task UpdateHeaderFromAuthAsync()
+  {
+    var auth = await AuthProvider.GetAuthenticationStateAsync();
+    isLoggedIn = auth.User.Identity?.IsAuthenticated ?? false;
+    userName = auth.User.Identity?.Name ?? "";
+    StateHasChanged();
+  }
 
   private void OnHeaderSearchKey(KeyboardEventArgs e)
   {
@@ -102,9 +137,26 @@
       Nav.NavigateTo($"/posts?title={Uri.EscapeDataString(headerSearch!)}");
   }
 
-  protected override void OnAfterRender(bool firstRender)
+  private async Task Logout()
+  {
+    await SimpleAuth.LogoutAsync();
+    await UpdateHeaderFromAuthAsync();
+    Nav.NavigateTo("/");
+  }
+
+  public void Dispose()
+  {
+    if (_locChangedHandler is not null)
+      Nav.LocationChanged -= _locChangedHandler;
+    AuthProvider.AuthenticationStateChanged -= OnAuthChanged;
+  }
+
+  protected override async Task OnAfterRenderAsync(bool firstRender)
   {
     if (firstRender)
-      Nav.LocationChanged += (_, __) => { showLoginMenu = false; StateHasChanged(); };
+    {
+      // Ensure Bootstrap dropdowns are wired after first render
+      await JS.InvokeVoidAsync("initDropdowns");
+    }
   }
 }

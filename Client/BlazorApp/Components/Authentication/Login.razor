@@ -1,0 +1,98 @@
+@page "/login"
+@rendermode InteractiveServer  
+@* <= make this page interactive so @onclick works *@
+@using ApiContracts.Authentication
+@using Microsoft.AspNetCore.Components.Authorization
+@using BlazorApp.Services.Auth
+@inject AuthenticationStateProvider AuthProvider
+@inject NavigationManager Nav
+
+<h4 class="mb-3">Login</h4>
+
+<AuthorizeView>
+  <Authorized>
+    <div class="alert alert-success d-flex align-items-center justify-content-between">
+      <div>
+        ✅ You are signed in as <strong>@context.User.Identity?.Name</strong>.
+      </div>
+      <div>
+        <button class="btn btn-outline-danger btn-sm" @onclick="DoLogout">Logout</button>
+        <button class="btn btn-outline-secondary btn-sm ms-2" @onclick="GoHome">Home</button>
+      </div>
+    </div>
+  </Authorized>
+
+  <NotAuthorized>
+    <div class="card">
+      <div class="card-body">
+        <div class="mb-3">
+          <label class="form-label">Username</label>
+          <input class="form-control" @bind="userName" autocomplete="username" />
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Password</label>
+          <input class="form-control" type="password" @bind="password" autocomplete="current-password" />
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(error))
+        {
+          <div class="alert alert-danger" role="alert">@error</div>
+        }
+
+        <button class="btn btn-primary" @onclick="HandleLogin" disabled="@isBusy">
+          @(isBusy ? "Signing in..." : "Sign in")
+        </button>
+        <button class="btn btn-secondary ms-2" @onclick="Cancel" disabled="@isBusy">Cancel</button>
+      </div>
+    </div>
+  </NotAuthorized>
+</AuthorizeView>
+
+@code {
+  private string userName = string.Empty;
+  private string password = string.Empty;
+  private bool isBusy = false;
+  private string? error;
+
+  private async Task HandleLogin()
+  {
+    if (isBusy) return;
+    error = null;
+
+    if (string.IsNullOrWhiteSpace(userName) || string.IsNullOrWhiteSpace(password))
+    {
+      error = "Please enter both username and password.";
+      return;
+    }
+
+    try
+    {
+      isBusy = true;
+      var simple = (SimpleAuthProvider)AuthProvider;
+
+      // ADDED: write current user into sessionStorage for persistence
+      await simple.LoginWithCacheAsync(userName, password);
+
+      Nav.NavigateTo("/");
+    }
+    catch (Exception ex)
+    {
+      error = ex.Message;
+    }
+    finally
+    {
+      isBusy = false;
+    }
+  }
+
+  private async Task DoLogout()
+  {
+    var simple = (SimpleAuthProvider)AuthProvider;
+    await simple.LogoutAsync();   // ADDED: clears sessionStorage as well
+    Nav.NavigateTo("/");
+  }
+
+  private void Cancel() => Nav.NavigateTo("/");
+  private void GoHome() => Nav.NavigateTo("/");
+}

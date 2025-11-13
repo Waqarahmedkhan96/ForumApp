@@ -28,5 +28,30 @@
     "id": 8,
     "username": "Shahzad Khan",
     "password": "Shezinana"
+  },
+  {
+    "id": 9,
+    "username": "Bartek Khan",
+    "password": "Bartek123"
+  },
+  {
+    "id": 10,
+    "username": "Zaynab_Khan",
+    "password": "Zaynab123"
+  },
+  {
+    "id": 11,
+    "username": "Ali",
+    "password": "Ali12345"
+  },
+  {
+    "id": 12,
+    "username": "Chan Bibi",
+    "password": "12345"
+  },
+  {
+    "id": 13,
+    "username": "Rauf Haq",
+    "password": "11111"
   }
 ]

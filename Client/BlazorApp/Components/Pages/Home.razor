@@ -8,6 +8,14 @@
 
 <h4 class="mb-3">Feed</h4>
 
+<!-- Search across posts -->
+<div class="mb-3">
+  <input class="form-control"
+         placeholder="Search by id, title, body, user id or name..."
+         @bind="searchText"
+         @bind:event="oninput" />
+</div>
+
 <!-- Sort dropdown (Hot/New) -->
 <div class="d-flex align-items-center gap-2 mb-3">
   <label class="text-muted">Sort by</label>
@@ -28,17 +36,29 @@ else if (items is null || items.Count == 0)
 }
 else
 {
-@foreach (var item in items)
-{
-  <BlazorApp.Components.PostCard
-      Post="item.Post"
-      Preview="item.Preview"
-      CommentCount="item.CommentCount" />
-}
+  var viewItems = FilteredItems.ToList();   // apply filter
+
+  if (viewItems.Count == 0)
+  {
+    <div class="alert alert-light border">No posts match your search.</div>
+  }
+  else
+  {
+    @foreach (var item in viewItems)
+    {
+      <BlazorApp.Components.PostCard
+          Post="item.Post"
+          Preview="item.Preview"
+          CommentCount="item.CommentCount" />
+    }
+  }
 }
 
 @code {
   private bool loading;
+
+  // search text
+  private string? searchText;
 
   // Use a backing field so we can react when the user changes the dropdown
   private string _sortMode = "hot";
@@ -62,6 +82,8 @@ else
     public required PostSummaryDto Post { get; set; }
     public required string Preview { get; set; }
     public int CommentCount { get; set; }
+
+    public int AuthorUserId { get; set; }   // for user id search
   }
 
   protected override async Task OnInitializedAsync() => await Load();
@@ -102,13 +124,44 @@ else
         {
           Post = s,
           Preview = preview,
-          CommentCount = counts.TryGetValue(s.Id, out var n) ? n : 0
+          CommentCount = counts.TryGetValue(s.Id, out var n) ? n : 0,
+          AuthorUserId = full.AuthorUserId // keep user id
         });
       }
 
       items = ApplySort(list);
     }
     finally { loading = false; }
+  }
+
+  // filtered view
+  private IEnumerable<FeedItem> FilteredItems =>
+    ApplyFilter(items ?? new List<FeedItem>());
+
+  private IEnumerable<FeedItem> ApplyFilter(IEnumerable<FeedItem> source)
+  {
+    if (string.IsNullOrWhiteSpace(searchText))
+      return source;
+
+    var term = searchText.Trim();
+    var termLower = term.ToLowerInvariant();
+    var isNumber = int.TryParse(term, out var number);
+
+    return source.Where(i =>
+        // match post id
+        (isNumber && i.Post.Id == number)
+        // match author user id
+        || (isNumber && i.AuthorUserId == number)
+        // match title
+        || (!string.IsNullOrEmpty(i.Post.Title)
+            && i.Post.Title.Contains(term, StringComparison.OrdinalIgnoreCase))
+        // match body / preview
+        || (!string.IsNullOrEmpty(i.Preview)
+            && i.Preview.Contains(term, StringComparison.OrdinalIgnoreCase))
+        // match author name
+        || (!string.IsNullOrEmpty(i.Post.AuthorName)
+            && i.Post.AuthorName.Contains(term, StringComparison.OrdinalIgnoreCase))
+    );
   }
 
   private List<FeedItem> ApplySort(IEnumerable<FeedItem> source)

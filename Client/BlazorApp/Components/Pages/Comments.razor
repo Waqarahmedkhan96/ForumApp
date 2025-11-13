@@ -3,10 +3,11 @@
 @using ApiContracts.Users
 @inject BlazorApp.Services.Interfaces.ICommentService CommentSvc
 @inject BlazorApp.Services.Interfaces.IUserService UserSvc
+@inject AuthenticationStateProvider AuthProvider
 
-<h4 class="mb-3">💬 Comments</h4>
+<h4 class="mb-3">💬 My Comments</h4>
 
-<!-- Filters -->
+<!-- Filters (post id + text) -->
 <div class="row g-2 mb-3">
   <div class="col-12 col-md-3">
     <input class="form-control" type="number" placeholder="Filter: Post Id"
@@ -32,6 +33,12 @@ else if (!string.IsNullOrWhiteSpace(error))
 {
   <div class="alert alert-danger">@error</div>
 }
+else if (currentUserId <= 0)
+{
+  <div class="alert alert-info">
+    Please log in to your account to see and manage your comment history.  @* login required *@
+  </div>
+}
 else
 {
   <!-- Create / Edit form -->
@@ -41,14 +48,8 @@ else
 
       <div class="row g-3">
         <div class="col-12 col-md-3">
-          <label class="form-label">Author (user)</label>
-          <select class="form-select" @bind="formUserId" disabled="@isEditing">
-            <option value="">-- select user --</option>
-            @foreach (var u in users)
-            {
-              <option value="@u.Id">@u.UserName (@u.Id)</option>
-            }
-          </select>
+          <label class="form-label">Author (you)</label>
+          <input class="form-control" value="@($"{currentUserName} ({currentUserId})")" disabled />  @* ADDED *@
         </div>
 
         <div class="col-12 col-md-3">
@@ -84,25 +85,20 @@ else
   </div>
 
   <!-- List -->
-  @if (items is null || items.Count == 0)
+  @if (items is null || items.Count == 0 || !itemsFilteredOnlyMine.Any())
   {
     <div class="alert alert-light border">No comments found.</div>
   }
   else
   {
     <div class="vstack gap-2">
-      @foreach (var c in itemsFiltered)
+      @foreach (var c in itemsFilteredOnlyMine)  @* ADDED: only my comments *@
       {
-        var author =
-          string.IsNullOrWhiteSpace(c.AuthorName)
-            ? (usersById.TryGetValue(c.AuthorUserId, out var nm) ? nm : $"User {c.AuthorUserId}")
-            : c.AuthorName;
-
         <div class="card">
           <div class="card-body">
             <div class="d-flex justify-content-between">
               <div>
-                <span class="fw-semibold">@author</span>
+                <span class="fw-semibold">@currentUserName</span>
                 <span class="text-muted">· Post #@c.PostId</span>
               </div>
               <div class="text-muted small">
@@ -122,26 +118,25 @@ else
 }
 
 @code {
-  // Data
   private List<CommentDto>? items;
   private List<UserDto> users = new();
   private Dictionary<int, string> usersById = new();
 
-  // UI state
   private bool loading, busy, isEditing;
   private string? error, ok, msg;
 
-  // Filters
   private string? filterText;
   private string? filterPostIdString;
-  private int? filterPostId =>
-      int.TryParse(filterPostIdString, out var v) ? v : null;
+  private int? filterPostId => int.TryParse(filterPostIdString, out var v) ? v : null;
 
-  // Form state
-  private int? formUserId;
+  // form
   private int formPostId;
   private string? formBody;
   private int editingId;
+
+  // ADDED: current user
+  private int currentUserId;
+  private string currentUserName = "Unknown";
 
   protected override async Task OnInitializedAsync() => await Load();
 
@@ -150,38 +145,39 @@ else
     loading = true; error = ok = msg = null;
     try
     {
-      // Load all users (for name display and selection)
+      var auth = await AuthProvider.GetAuthenticationStateAsync();
+      currentUserId = int.TryParse(auth.User.FindFirst("Id")?.Value, out var id) ? id : 0;
+      currentUserName = auth.User.Identity?.Name ?? "Unknown";
+
       users = await UserSvc.GetAllUsersAsync();
       usersById = users.ToDictionary(u => u.Id, u => u.UserName);
 
-      // Load all comments
       items = await CommentSvc.GetAllCommentsAsync();
-
-      // If API didn’t include AuthorName, rendering will use usersById.
     }
     catch (Exception ex) { error = ex.Message; }
     finally { loading = false; }
   }
 
-  private IEnumerable<CommentDto> itemsFiltered =>
+  private IEnumerable<CommentDto> itemsFilteredOnlyMine =>
     (items ?? new())
+      .Where(c => c.AuthorUserId == currentUserId)
       .Where(c => !filterPostId.HasValue || c.PostId == filterPostId.Value)
       .Where(c =>
       {
         if (string.IsNullOrWhiteSpace(filterText)) return true;
-        var author = string.IsNullOrWhiteSpace(c.AuthorName)
-            ? (usersById.TryGetValue(c.AuthorUserId, out var nm) ? nm : $"User {c.AuthorUserId}")
-            : c.AuthorName;
-        return (c.Body?.Contains(filterText, StringComparison.OrdinalIgnoreCase) ?? false)
-               || (author?.Contains(filterText, StringComparison.OrdinalIgnoreCase) ?? false);
+        return (c.Body?.Contains(filterText, StringComparison.OrdinalIgnoreCase) ?? false);
       });
 
-  // Create
   private async Task Create()
   {
     msg = ok = null;
 
-    if (!formUserId.HasValue || formUserId <= 0) { msg = "Please select a user."; return; }
+    if (currentUserId <= 0)
+    {
+      msg = "Please log in to your account to create comments."; // login guard
+      return;
+    }
+
     if (formPostId <= 0) { msg = "Post Id must be > 0."; return; }
     if (string.IsNullOrWhiteSpace(formBody)) { msg = "Comment cannot be empty."; return; }
 
@@ -192,20 +188,11 @@ else
       {
         PostId = formPostId,
         Body = formBody!,
-        AuthorUserId = formUserId.Value
+        AuthorUserId = currentUserId // ADDED
       });
-
-      // Ensure AuthorName visible even if API didn’t populate it
-      if (string.IsNullOrWhiteSpace(created.AuthorName)
-          && usersById.TryGetValue(created.AuthorUserId, out var nm))
-      {
-        created.AuthorName = nm;
-      }
 
       items ??= new();
       items.Add(created);
-
-      // reset form
       formBody = string.Empty;
       ok = "Comment posted.";
     }
@@ -213,12 +200,11 @@ else
     finally { busy = false; }
   }
 
-  // Edit
   private void StartEdit(CommentDto c)
   {
+    if (c.AuthorUserId != currentUserId) return; // ADDED protect
     isEditing = true;
     editingId = c.Id;
-    formUserId = c.AuthorUserId; // disabled in UI while editing
     formPostId = c.PostId;
     formBody = c.Body;
     ok = msg = null;
@@ -228,6 +214,12 @@ else
   {
     msg = ok = null;
 
+    if (currentUserId <= 0)
+    {
+      msg = "Please log in to update comments."; // login guard
+      return;
+    }
+
     if (editingId <= 0) { msg = "No comment selected."; return; }
     if (formPostId <= 0) { msg = "Post Id must be > 0."; return; }
     if (string.IsNullOrWhiteSpace(formBody)) { msg = "Comment cannot be empty."; return; }
@@ -235,7 +227,6 @@ else
     busy = true;
     try
     {
-      // Your UpdateCommentDto requires PostId + Body
       await CommentSvc.UpdateCommentAsync(editingId, new UpdateCommentDto
       {
         PostId = formPostId,
@@ -247,7 +238,6 @@ else
       {
         existing.PostId = formPostId;
         existing.Body = formBody!;
-        // keep AuthorUserId as-is
       }
 
       ok = "Comment updated.";
@@ -262,13 +252,21 @@ else
     isEditing = false;
     editingId = 0;
     formBody = null;
-    // keep formUserId/formPostId; they can be reused
   }
 
-  // Delete
   private async Task Delete(int id)
   {
     msg = ok = null;
+
+    if (currentUserId <= 0)
+    {
+      msg = "Please log in to delete comments."; // login guard
+      return;
+    }
+
+    var mine = items?.FirstOrDefault(x => x.Id == id && x.AuthorUserId == currentUserId);
+    if (mine is null) return; // ADDED protect
+
     try
     {
       await CommentSvc.DeleteCommentAsync(id);

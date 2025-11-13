@@ -34,5 +34,47 @@
     "title": "Internship \u2013 Software Test Engineer in Healthcare Solutions",
     "body": "Are you seeking an internship where you can apply your skills, learn from experienced professionals, and make a meaningful impact? At Systematic, we develop healthcare software that supports doctors, nurses, and patients every day. As a Software Test Engineer Intern, you will contribute to ensuring that our solutions are reliable and of the highest quality",
     "userId": 1
+  },
+  {
+    "id": 9,
+    "title": "\uD83D\uDE80 Built a Reddit-style Blazor Forum with Full Login \u0026 Authorization from Scratch",
+    "body": "I just finished Assignment 6 (Authentication \u0026 Authorization) for my .NET Blazor course \u2014 and I\u2019m proud of how it turned out!\n\n\uD83D\uDD11 Users can sign up, log in, and log out, with all sessions persisted in the browser using sessionStorage.\n\uD83D\uDC64 The Account dropdown dynamically switches between \u201CSign in / Sign up\u201D and \u201CLog out\u201D \u002B username.\n\uD83D\uDCAC Once logged in, users can create, edit, and delete only their own posts and comments, while viewing everyone else\u2019s.\n\nOn the backend, I added an AuthController for POST /auth/login and simple DTOs (LoginRequest, UserDto).\nOn the frontend, Blazor uses a custom SimpleAuthProvider implementing AuthenticationStateProvider, wiring it all up with claims and state refreshes.\n\n\uD83D\uDD27 Tech stack:\n\nASP.NET Core Web API (.NET 10)\n\nBlazor Server (.NET 10)\n\nCustom AuthenticationStateProvider\n\nBootstrap 5 UI\n\nHere\u2019s what I learned:\n\nHow to use claims-based authentication in Blazor\n\nCascading authentication state with \u003CCascadingAuthenticationState\u003E\n\nUsing AuthorizeView and [Authorize] to protect UI and pages\n\nHow to cache login state in sessionStorage\n\nIt feels amazing to finally have a working login system integrated into a full-stack Blazor \u002B Web API app ",
+    "userId": 10
+  },
+  {
+    "id": 10,
+    "title": "What is JWT (JSON Web Token)?",
+    "body": "\uD83D\uDD10 What is JWT (JSON Web Token)?\n\nJWT = JSON Web Token, a compact, secure way to represent a user\u2019s identity and claims between the client (like your Blazor app) and the server (your Web API).\n\nThink of it as a digital ID card that the server issues when a user logs in.\n\nHere\u2019s the idea:\n\nUser logs in \u2192 sends username \u002B password to the server (/auth/login).\n\nThe server verifies credentials.\n\nThe server creates a token (JWT) that contains info like:\n\n{\n  \u0022sub\u0022: \u0022Bartek\u0022,\n  \u0022id\u0022: 12,\n  \u0022role\u0022: \u0022user\u0022,\n  \u0022exp\u0022: 1731450000\n}",
+    "userId": 10
+  },
+  {
+    "id": 11,
+    "title": "\u26A0\uFE0F Why Idon\u2019t need JWT for this assignment 06?",
+    "body": "For Assignment 6, your login system is local and educational, running Blazor and Web API on the same machine.\nThe goal is to understand how authentication and authorization work, not to implement production-level security.\n\nJWT is meant for:\n\nPublic web applications\n\nAPIs that multiple clients consume\n\nScenarios where the server and client are on different domains\n\nEnterprise or production apps where you need token-based, stateless login",
+    "userId": 10
+  },
+  {
+    "id": 12,
+    "title": "Test Assignment 06",
+    "body": "Stilling fixing my code and tracking of each and everythinng is not easy at all.\nAdded login message in UI if currentUserId \u003C= 0.\n\nButton disabled when not logged in.\n\nAddComment() now sets a clear error if user is not logged in.\n\nAdded small comments: // load auth state, // load post data, // create comment, // author lookup.",
+    "userId": 12
+  },
+  {
+    "id": 13,
+    "title": "String.Substring Method",
+    "body": "Retrieves a substring from this instance.\n\nThis member is overloaded. For complete information about this member, including syntax, usage, and examples, click a name in the overload list.",
+    "userId": 12
+  },
+  {
+    "id": 14,
+    "title": "\uD83D\uDD25 \u0628\u0644\u06CC\u06A9 \u0641\u0631\u0627\u0626\u06CC\u0688\u06D2 \u0633\u06CC\u0644 \u2014 \u0635\u0631\u0641 \u0627\u0679\u06A9 \u06A9\u06D2 \u0644\u06CC\u06D2! \uD83D\uDD25",
+    "body": "\n\n\u0646\u0627\u0632 \u0627\u06CC\u0644 \u067E\u06CC \u062C\u06CC \u0644\u0627 \u0631\u06C1\u0627 \u06C1\u06D2 **\u0634\u06C1\u0631 \u06A9\u06CC \u0633\u0628 \u0633\u06D2 \u0628\u0691\u06CC \u0688\u06CC\u0644!**\n\u0645\u0641\u062A \u06C1\u0648\u0645 \u0688\u0644\u06CC\u0648\u0631\u06CC\u060C \u062E\u0627\u0644\u0635 \u06AF\u06CC\u0633\u060C \u0627\u0648\u0631 \u0641\u0648\u0631\u06CC \u0633\u0631\u0648\u0633 \uD83D\uDE9A\n\n\u0627\u0628\u06BE\u06CC \u0622\u0631\u0688\u0631 \u06A9\u0631\u06CC\u06BA \u0627\u0648\u0631 **\u0628\u0644\u06CC\u06A9 \u0641\u0631\u0627\u0626\u06CC\u0688\u06D2 \u0627\u0633\u067E\u06CC\u0634\u0644 \u0688\u0633\u06A9\u0627\u0624\u0646\u0679** \u062D\u0627\u0635\u0644 \u06A9\u0631\u06CC\u06BA!\n\uD83D\uDCCD \u0635\u0631\u0641 **Attock** \u06A9\u06D2 \u0635\u0627\u0631\u0641\u06CC\u0646 \u06A9\u06D2 \u0644\u06CC\u06D2\n\n",
+    "userId": 13
+  },
+  {
+    "id": 15,
+    "title": "Design \u0026 Alignment Guide for the Designer",
+    "body": "Color Scheme:\n\nUse royal metallic gold (#D4AF37 or #FFD700) for text when placed on black background areas (like the footer or logo strip).\n\nUse rich black text (#111111) when placed on white or light gray background (like top part of the poster).\n\n\uD83D\uDCD0 Alignment \u0026 Layout:\n\nCenter align all text vertically and horizontally for a premium, balanced look.\n\nPlace \u201CNaaz LPG\u201D slightly larger and bolder in the center or lower middle \u2014 it\u2019s the hero brand.\n\nKeep \u201CBlack Friday \u2013 Big Discount\u201D at the top with a bit of sparkle/glow effect in gold.\n\n\u201CFree Delivery\u201D and \u201COrder Now \u0026 Save Big\u201D go below it with equal spacing.\n\n\u201CPremium Quality \u2022 Certified Agency\u201D should be the smallest line, at the bottom (footer area).\n\n\uD83D\uDDBC\uFE0F Visual Style Notes:\n\nMaintain the gray or white background with the black-and-gold gas cylinder in the center.\n\nAdd gold balloons and light sparkles to highlight the festive Black Friday theme.\n\nUse modern sans-serif font (like Montserrat, Poppins, or Bebas Neue) for a bold and trustworthy look.",
+    "userId": 13
   }
 ]

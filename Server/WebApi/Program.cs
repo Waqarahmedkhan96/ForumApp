@@ -6,11 +6,12 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
-using WebAPI.GlobalExceptionHandler; // or WebApi.GlobalExceptionHandler
+// WebApi.GlobalExceptionHandler
+using WebAPI.GlobalExceptionHandler; 
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Controllers
+// MVC Controllers
 builder.Services.AddControllers();
 
 // Controllers + JSON settings

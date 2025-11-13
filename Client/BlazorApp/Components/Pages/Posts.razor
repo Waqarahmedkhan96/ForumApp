@@ -3,6 +3,7 @@
 @using ApiContracts.Users
 @inject BlazorApp.Services.Interfaces.IPostService postService
 @inject BlazorApp.Services.Interfaces.IUserService userService
+@inject AuthenticationStateProvider AuthProvider
 
 <h4 class="mb-3">Posts</h4>
 
@@ -10,6 +11,14 @@
 <div class="card mb-4">
   <div class="card-body">
     <h5 class="mb-3">@(isEditing ? "Edit Post" : "Create a Post")</h5>
+
+    @* show login info *@
+    @if (!isLoggedIn)
+    {
+      <div class="alert alert-info mb-3">
+        Please log in to create or edit your posts.
+      </div>
+    }
 
     <div class="row g-3">
       <div class="col-12">
@@ -24,20 +33,19 @@
 
       <div class="col-12 col-md-4">
         <label class="form-label">Author User Id</label>
-        <input type="number" class="form-control" @bind="authorId" disabled="@isEditing" />
-        @* UpdatePostDto does not change AuthorUserId, so disable during edit *@
+        <input type="number" class="form-control" @bind="authorId" disabled /> @* always from auth *@
       </div>
 
       <div class="col-12">
         @if (!isEditing)
         {
-          <button class="btn btn-success" @onclick="Create" disabled="@busy">
+          <button class="btn btn-success" @onclick="Create" disabled="@(!isLoggedIn || busy)">
             @if (busy) { <span class="spinner-border spinner-border-sm me-1"></span> } Publish
           </button>
         }
         else
         {
-          <button class="btn btn-primary me-2" @onclick="Update" disabled="@busy">
+          <button class="btn btn-primary me-2" @onclick="Update" disabled="@busy || !isEditingMyOwn || !isLoggedIn">
             @if (busy) { <span class="spinner-border spinner-border-sm me-1"></span> } Save changes
           </button>
           <button class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
@@ -68,6 +76,7 @@ else
 {
   @foreach (var p in items)
   {
+    var owner = ownedPostIds.Contains(p.Id);  @* <- ownership without touching PostSummaryDto *@
     <div class="card mb-2">
       <div class="card-body">
         <a class="h5 text-decoration-none" href="/posts/@p.Id">@p.Title</a>
@@ -77,8 +86,15 @@ else
       </div>
       <div class="card-footer d-flex gap-2">
         <a class="btn btn-sm btn-outline-secondary" href="/posts/@p.Id">View</a>
-        <button class="btn btn-sm btn-outline-primary" @onclick="() => StartEdit(p.Id)">Edit</button>
-        <button class="btn btn-sm btn-outline-danger"  @onclick="() => Delete(p.Id)">Delete</button>
+        @if (owner && isLoggedIn)
+        {
+          <button class="btn btn-sm btn-outline-primary" @onclick="() => StartEdit(p.Id)">Edit</button>
+          <button class="btn btn-sm btn-outline-danger"  @onclick="() => Delete(p.Id)">Delete</button>
+        }
+        else
+        {
+          <span class="text-muted small">— read-only —</span>
+        }
       </div>
     </div>
   }
@@ -92,42 +108,89 @@ else
 
   // create/edit form state
   private string? title, body, error, ok;
-  private int authorId = 1;   // for create; disabled while editing
+  private int authorId;            // filled from auth
   private bool busy, isEditing = false;
   private int editingPostId;
+  private bool isEditingMyOwn;
 
-  protected override async Task OnInitializedAsync() => await Load();
+  // auth/ownership
+  private int currentUserId;
+  private bool isLoggedIn;                  // login flag
+  private HashSet<int> ownedPostIds = new();   // <- ADDED
 
-  // Load summaries, enrich with author names (without changing your API)
+  protected override async Task OnInitializedAsync()
+  {
+    // read auth user
+    var auth = await AuthProvider.GetAuthenticationStateAsync();
+    currentUserId = int.TryParse(auth.User.FindFirst("Id")?.Value, out var id) ? id : 0;
+    isLoggedIn = currentUserId > 0;        // logged-in flag
+    authorId = currentUserId;              // author for create
+    await Load();
+  }
+
+  // Load summaries + compute ownership without modifying PostSummaryDto
   private async Task Load()
   {
     loading = true; error = ok = null;
     try
     {
-      // 1) summaries (Id, Title)
+      // always load all
       var summaries = await postService.GetPostsAsync(
-        new PostQueryParameters { TitleContains = titleFilter });
+        new PostQueryParameters { TitleContains = null }); // server-all
 
-      // 2) users → dictionary
       var users = await userService.GetAllUsersAsync();
       var usersById = users.ToDictionary(u => u.Id, u => u.UserName);
 
-      // 3) for each summary, fetch full post to know AuthorUserId, then set AuthorName
+      ownedPostIds.Clear();
+
+      var filtered = new List<PostSummaryDto>(); // local list
+
       foreach (var s in summaries)
       {
-        var full = await postService.GetPostByIdAsync(s.Id);
-        s.AuthorName = usersById.TryGetValue(full.AuthorUserId, out var name) ? name : null;
+        var full = await postService.GetPostByIdAsync(s.Id); // load full
+
+        if (usersById.TryGetValue(full.AuthorUserId, out var name))
+          s.AuthorName = name;
+
+        if (full.AuthorUserId == currentUserId)
+          ownedPostIds.Add(s.Id);
+
+        // text / id filter
+        if (!string.IsNullOrWhiteSpace(titleFilter))
+        {
+          var term = titleFilter.Trim();
+          var matchesId = int.TryParse(term, out var idFilter) && s.Id == idFilter;
+          var matchesTitle = !string.IsNullOrEmpty(s.Title)
+                             && s.Title.Contains(term, StringComparison.OrdinalIgnoreCase);
+          var matchesBody = !string.IsNullOrEmpty(full.Body)
+                            && full.Body.Contains(term, StringComparison.OrdinalIgnoreCase);
+
+          if (!(matchesId || matchesTitle || matchesBody))
+            continue;
+        }
+
+        // only my posts
+        if (isLoggedIn && full.AuthorUserId != currentUserId)
+          continue;
+
+        filtered.Add(s);
       }
 
-      items = summaries;
+      items = filtered; // final list
     }
     finally { loading = false; }
   }
 
-  // CREATE
-  private async Task Create()
+  private async Task Create() // create new post
   {
     error = ok = null;
+
+    if (!isLoggedIn)
+    {
+      error = "Please log in to create posts.";
+      return;
+    }
+
     if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(body))
     {
       error = "Title and Body are required.";
@@ -139,7 +202,7 @@ else
     {
       await postService.CreatePostAsync(new CreatePostDto
       {
-        Title = title!, Body = body!, AuthorUserId = authorId
+        Title = title!, Body = body!, AuthorUserId = currentUserId
       });
 
       title = body = string.Empty;
@@ -150,25 +213,28 @@ else
     finally { busy = false; }
   }
 
-  // ENTER EDIT MODE
-  private async Task StartEdit(int id)
+  private async Task StartEdit(int id) // start editing
   {
     error = ok = null;
-    try
+
+    if (!isLoggedIn)
     {
-      var full = await postService.GetPostByIdAsync(id); // need Body + AuthorUserId
-      editingPostId = id;
-      title   = full.Title;
-      body    = full.Body;
-      authorId = full.AuthorUserId; // shown but disabled
-      isEditing = true;
+      error = "Please log in to edit posts.";
+      return;
     }
-    catch (Exception ex) { error = ex.Message; }
+
+    var full = await postService.GetPostByIdAsync(id);
+    editingPostId = id;
+    title = full.Title;
+    body  = full.Body;
+    isEditingMyOwn = (full.AuthorUserId == currentUserId);
+    isEditing = true;
   }
 
-  // UPDATE
-  private async Task Update()
+  private async Task Update() // update existing
   {
+    if (!isEditingMyOwn || !isLoggedIn) return;
+
     error = ok = null;
     if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(body))
     {
@@ -193,29 +259,34 @@ else
     finally { busy = false; }
   }
 
-  private void CancelEdit()
+  private void CancelEdit() // reset form
   {
     isEditing = false;
     title = body = string.Empty;
     ok = error = null;
   }
 
-  // DELETE
-  private async Task Delete(int id)
+  private async Task Delete(int id) // delete post
   {
     error = ok = null;
-    if (!await Confirm($"Delete post #{id}?")) return;
+
+    if (!isLoggedIn)
+    {
+      error = "Please log in to delete posts.";
+      return;
+    }
+
+    var full = await postService.GetPostByIdAsync(id);
+    if (full.AuthorUserId != currentUserId) return;
 
     try
     {
       await postService.DeletePostAsync(id);
       items!.RemoveAll(x => x.Id == id);
+      ownedPostIds.Remove(id);
       ok = "Post deleted.";
       StateHasChanged();
     }
     catch (Exception ex) { error = ex.Message; }
   }
-
-  // Minimal confirm placeholder
-  private Task<bool> Confirm(string _) => Task.FromResult(true);
 }
