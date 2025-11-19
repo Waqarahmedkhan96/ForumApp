@@ -102,7 +102,7 @@ else
                 <span class="text-muted">· Post #@c.PostId</span>
               </div>
               <div class="text-muted small">
-                @c.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")
+                @c.CreatedAt.ToString("dd-MM-yyyy")
               </div>
             </div>
             <div class="mt-1">@c.Body</div>

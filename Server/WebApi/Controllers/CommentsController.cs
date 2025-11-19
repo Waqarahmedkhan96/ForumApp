@@ -3,6 +3,7 @@ using Entities;
 using Microsoft.AspNetCore.Mvc;
 using RepositoryContracts;
 using RepositoryContracts.ExceptionHandling;
+using Microsoft.EntityFrameworkCore; // EF async
 
 namespace WebApi.Controllers;
 
@@ -61,7 +62,9 @@ public class CommentsController : ControllerBase
 
     // GET /comments?postId=&authorUserId=
     [HttpGet]
-    public ActionResult<IEnumerable<CommentDto>> GetMany([FromQuery] int? postId, [FromQuery] int? authorUserId)
+    public async Task<ActionResult<IEnumerable<CommentDto>>> GetMany(
+        [FromQuery] int? postId,
+        [FromQuery] int? authorUserId)
     {
         var query = _comments.GetManyAsync();
 
@@ -71,13 +74,15 @@ public class CommentsController : ControllerBase
         if (authorUserId is not null)
             query = query.Where(c => c.UserId == authorUserId.Value);
 
-        var list = query.Select(c => new CommentDto
-        {
-            Id = c.Id,
-            Body = c.Body,
-            PostId = c.PostId,
-            AuthorUserId = c.UserId
-        }).ToList();
+        var list = await query
+            .Select(c => new CommentDto
+            {
+                Id = c.Id,
+                Body = c.Body,
+                PostId = c.PostId,
+                AuthorUserId = c.UserId
+            })
+            .ToListAsync(); // async DB
 
         return Ok(list);
     }
@@ -107,45 +112,45 @@ public class CommentsController : ControllerBase
     }
 
     // GET /posts/{postId}/comments  (post-scoped list)
-[HttpGet("/posts/{postId:int}/comments")]
-public ActionResult<IEnumerable<CommentDto>> GetForPost(int postId)
-{
-    var list = _comments.GetManyAsync()
-        .Where(c => c.PostId == postId)
-        .Select(c => new CommentDto
+    [HttpGet("/posts/{postId:int}/comments")]
+    public async Task<ActionResult<IEnumerable<CommentDto>>> GetForPost(int postId)
+    {
+        var list = await _comments.GetManyAsync()
+            .Where(c => c.PostId == postId)
+            .Select(c => new CommentDto
+            {
+                Id = c.Id,
+                Body = c.Body,
+                PostId = c.PostId,
+                AuthorUserId = c.UserId
+            })
+            .ToListAsync(); // async
+
+        return Ok(list);
+    }
+
+    // POST /posts/{postId}/comments  (create for a post)
+    [HttpPost("/posts/{postId:int}/comments")]
+    public async Task<ActionResult<CommentDto>> CreateForPost(int postId, [FromBody] CreateCommentDto dto)
+    {
+        // Always take postId from route, ignore any mismatch from body
+        var toCreate = new Comment
         {
-            Id = c.Id,
-            Body = c.Body,
-            PostId = c.PostId,
-            AuthorUserId = c.UserId
-        }).ToList();
+            Body = dto.Body,
+            PostId = postId,
+            UserId = dto.AuthorUserId
+        };
 
-    return Ok(list);
-}
+        var created = await _comments.AddAsync(toCreate);
 
-// POST /posts/{postId}/comments  (create for a post)
-[HttpPost("/posts/{postId:int}/comments")]
-public async Task<ActionResult<CommentDto>> CreateForPost(int postId, [FromBody] CreateCommentDto dto)
-{
-    // Always take postId from route, ignore any mismatch from body
-    var toCreate = new Comment
-    {
-        Body = dto.Body,
-        PostId = postId,
-        UserId = dto.AuthorUserId
-    };
+        var result = new CommentDto
+        {
+            Id = created.Id,
+            Body = created.Body,
+            PostId = created.PostId,
+            AuthorUserId = created.UserId
+        };
 
-    var created = await _comments.AddAsync(toCreate);
-
-    var result = new CommentDto
-    {
-        Id = created.Id,
-        Body = created.Body,
-        PostId = created.PostId,
-        AuthorUserId = created.UserId
-    };
-
-    return Created($"/comments/{result.Id}", result);
-}
-
+        return Created($"/comments/{result.Id}", result);
+    }
 }

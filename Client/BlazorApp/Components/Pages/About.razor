@@ -1,10 +1,179 @@
 @page "/about"
 
-<h4 class="mb-3">ℹ️ About Us</h4>
-<p>This forum-style app was built for <strong>Assignment 5</strong> using:</p>
-<ul>
-  <li>ASP.NET Core Web API (https://localhost:5235)</li>
-  <li>Blazor WebAssembly Client</li>
-  <li>HttpClient service calls with DTOs for Users, Posts, and Comments</li>
-</ul>
-<p>You can create users, share posts, and add comments in real time.</p>
+<div class="container py-3">
+
+  <!-- Header -->
+  <div class="row mb-3">
+    <div class="col-12 col-lg-8">
+      <h3 class="mb-2">ℹ️ About BlazorForum</h3>
+      <p class="text-muted mb-0">
+        <strong>BlazorForum</strong> is a small Reddit-style discussion platform built as part of the
+        <strong>DNP1</strong> course. It consists of a <strong>Blazor WebAssembly client</strong> and an
+        <strong>ASP.NET Core Web API</strong>, developed step-by-step through <strong>Assignments 1–7</strong>.
+      </p>
+    </div>
+  </div>
+
+  <!-- Feature + Tech Overview -->
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-md-6">
+      <div class="card h-100">
+        <div class="card-body">
+          <h5 class="card-title">✨ What you can do</h5>
+          <ul class="mb-0">
+            <li>Sign up and log in as a forum user</li>
+            <li>Create, edit, and delete posts</li>
+            <li>Write and manage comments</li>
+            <li>Search and filter posts and comments</li>
+            <li>Work with real data stored in SQLite via EF Core</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6">
+      <div class="card h-100">
+        <div class="card-body">
+          <h5 class="card-title">🛠 Technologies</h5>
+          <ul class="mb-0">
+            <li>Blazor WebAssembly (client)</li>
+            <li>ASP.NET Core Web API (server)</li>
+            <li>Entity Framework Core + SQLite</li>
+            <li>Repository Pattern & Dependency Injection</li>
+            <li>Bootstrap 5 for responsive UI</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <hr />
+
+  <!-- Assignment Timeline -->
+  <h4 class="mb-2">📚 Assignment Timeline (1–7)</h4>
+  <p class="text-muted">
+    Click on each assignment to see what was added to BlazorForum during that step.
+  </p>
+
+  <div class="vstack gap-2 mb-4">
+
+    <details class="border rounded p-2">
+      <summary class="fw-semibold">Assignment 1 – First Web API &amp; DTOs</summary>
+      <div class="mt-2">
+        <p>We built the very first version of the API using in-memory data:</p>
+        <ul>
+          <li>Created <code>User</code>, <code>Post</code>, and <code>Comment</code> entities</li>
+          <li>Introduced DTOs so the API never returns entities directly</li>
+          <li>Exposed basic CRUD endpoints for users, posts, and comments</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="border rounded p-2">
+      <summary class="fw-semibold">Assignment 2 – Validation &amp; Global Error Handling</summary>
+      <div class="mt-2">
+        <p>We made the API more robust and user-friendly:</p>
+        <ul>
+          <li>Input validation for usernames, passwords, titles, and bodies</li>
+          <li>Custom exceptions like <code>NotFoundException</code> and <code>ValidationException</code></li>
+          <li>Global exception middleware returning clean HTTP responses (400, 404, 500)</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="border rounded p-2">
+      <summary class="fw-semibold">Assignment 3 – Repository Pattern &amp; File Storage</summary>
+      <div class="mt-2">
+        <p>We separated logic from data access using repositories:</p>
+        <ul>
+          <li>Interfaces in <code>RepositoryContracts</code> (e.g. <code>IUserRepository</code>)</li>
+          <li>File-based repositories in <code>FileRepositories</code> storing data in JSON files</li>
+          <li>Controllers became storage-agnostic (clean architecture)</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="border rounded p-2">
+      <summary class="fw-semibold">Assignment 4 – Web API Improvements &amp; Query Support</summary>
+      <div class="mt-2">
+        <p>We improved how clients can query and work with data:</p>
+        <ul>
+          <li>Added query parameters like <code>?titleContains=</code> and <code>?authorUserId=</code></li>
+          <li>More structured DTOs for create, update, and list / summary</li>
+          <li>Better HTTP status codes (<code>201 Created</code>, <code>204 NoContent</code>)</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="border rounded p-2">
+      <summary class="fw-semibold">Assignment 5 – Blazor Client (UI)</summary>
+      <div class="mt-2">
+        <p>We built the Blazor frontend that talks to the Web API via <code>HttpClient</code>:</p>
+        <ul>
+          <li>Pages for Home/Feed, Posts, Comments, and Users</li>
+          <li>Services like <code>IUserService</code>, <code>IPostService</code>, <code>ICommentService</code></li>
+          <li>Forms for creating and editing posts and comments with validation messages</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="border rounded p-2">
+      <summary class="fw-semibold">Assignment 6 – Authentication &amp; “My” Pages</summary>
+      <div class="mt-2">
+        <p>We added simple authentication and user-specific views:</p>
+        <ul>
+          <li>Login endpoint in the API and a Blazor login page</li>
+          <li>Custom <code>AuthenticationStateProvider</code> to store the logged-in user</li>
+          <li><strong>“My posts”</strong> and <strong>“My comments”</strong> views filtered by the current user</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="border rounded p-2">
+      <summary class="fw-semibold">Assignment 7 – EF Core &amp; SQLite</summary>
+      <div class="mt-2">
+        <p>Finally, we replaced file storage with a real relational database:</p>
+        <ul>
+          <li>Introduced <code>AppContext : DbContext</code> with <code>DbSet&lt;User&gt;</code>,
+              <code>DbSet&lt;Post&gt;</code>, and <code>DbSet&lt;Comment&gt;</code></li>
+          <li>Configured SQLite (<code>app.db</code>) and created migrations with <code>dotnet ef</code></li>
+          <li>Added navigation properties and relationships (user → posts/comments, post → comments)</li>
+          <li>Implemented <code>EfcUserRepository</code>, <code>EfcPostRepository</code>,
+              <code>EfcCommentRepository</code> and wired them via DI</li>
+          <li>Used <code>Include</code> / <code>ThenInclude</code> to load posts together with authors and comments</li>
+        </ul>
+      </div>
+    </details>
+
+  </div>
+
+  <hr />
+
+  <!-- Learning -->
+  <h4 class="mb-2">🎓 What We Learned</h4>
+  <p>
+    Through Assignments 1–7, BlazorForum grew from a simple in-memory API into a complete 
+    full-stack application with clean architecture, validation, authentication, and a real 
+    database. It demonstrates the full journey of data: from the Blazor client → Web API → 
+    Entity Framework Core → SQLite, and back to the browser.
+  </p>
+
+  <hr />
+
+  <!-- Meet the Developer -->
+  <h4 class="mb-2">👨‍💻 Meet the Developer</h4>
+  <div class="p-3 border rounded bg-light mb-4">
+    <p class="mb-1"><strong>Waqar Ahmed Khan</strong></p>
+    <p class="text-muted mb-2">Software Technology Student — VIA University College</p>
+    <p class="mb-2">
+      I built BlazorForum as part of my DNP1 course work. The goal was not just to finish 
+      assignments, but to understand how real applications are structured: from DTOs and 
+      repositories to authentication, EF Core, and Blazor WebAssembly.
+    </p>
+    <p class="mb-0">
+      This project helped me strengthen my skills in C#, Web APIs, SQL/SQLite, and frontend 
+      development with Blazor — and to connect all of these pieces into one working system.
+    </p>
+  </div>
+
+</div>

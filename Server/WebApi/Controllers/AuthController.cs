@@ -3,6 +3,7 @@ using RepositoryContracts;
 using ApiContracts.Authentication;
 using ApiContracts.Users;
 using System.Linq;
+using Microsoft.EntityFrameworkCore; // EF async
 
 namespace WebApi.Controllers
 {
@@ -18,29 +19,30 @@ namespace WebApi.Controllers
         }
 
         [HttpPost("login")]
-        public ActionResult<UserDto> Login([FromBody] LoginRequest loginRequest)
+        public async Task<ActionResult<UserDto>> Login([FromBody] LoginRequest loginRequest)
         {
-            // 1️⃣ Find user by username
-            var user = users.GetManyAsync()
-                .FirstOrDefault(u =>
-                    string.Equals(u.Username, loginRequest.UserName, StringComparison.OrdinalIgnoreCase));
+            // 1️ Find user by username (async, EF-safe)
+            string name = loginRequest.UserName.ToLower();
+            var user = await users.GetManyAsync()
+                .FirstOrDefaultAsync(u =>
+                    u.Username.ToLower() == name);
 
-            // 2️⃣ If not found → Unauthorized
+            // 2️ If not found → Unauthorized
             if (user is null)
                 return Unauthorized("Invalid username or password.");
 
-            // 3️⃣ Check password
+            // 3️ Check password
             if (user.Password != loginRequest.Password)
                 return Unauthorized("Invalid username or password.");
 
-            // 4️⃣ Convert to DTO (never send password)
+            // 4️ Convert to DTO (never send password)
             var dto = new UserDto
             {
                 Id = user.Id,
                 UserName = user.Username
             };
 
-            // 5️⃣ Return always the UserDto not the object itself
+            // 5️ Return always the UserDto not the object itself
             return Ok(dto);
         }
     }

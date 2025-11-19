@@ -7,7 +7,7 @@ public class CommentDto
     public required int AuthorUserId { get; set; }
     public string? AuthorName { get; set; } 
     public required string Body { get; set; }
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateOnly CreatedAt { get; set; } = DateOnly.FromDateTime(DateTime.UtcNow);
 }
 
 

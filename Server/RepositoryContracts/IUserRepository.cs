@@ -1,5 +1,4 @@
 using Entities;
-using System.Linq;
 
 namespace RepositoryContracts;
 
